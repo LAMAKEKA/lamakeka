@@ -1,9 +1,10 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
-import { Plus, Search, Minus, Package, X, Loader2, AlertCircle, Download, Upload } from "lucide-react";
+import { Plus, Search, Minus, Package, X, Loader2, AlertCircle, Download, Upload, MoreHorizontal, Clock } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { useDraggable } from "@/lib/useDraggable";
+import { AuditDrawer } from "@/components/audit-drawer";
 import { exportToExcel, todayISO, slugifyName } from "@/lib/exportExcel";
 import { ImportModal } from "@/components/import-modal";
 
@@ -258,6 +259,15 @@ export default function InsumosPage() {
   const [ajustes, setAjustes] = useState<Record<string, number>>({});
   const [establecimientoNombre, setEstablecimientoNombre] = useState("");
   const [profilesMap, setProfilesMap] = useState<Record<string, string>>({});
+  const [auditId, setAuditId] = useState<string | null>(null);
+  const [openMenuId, setOpenMenuId] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!openMenuId) return;
+    function close() { setOpenMenuId(null); }
+    document.addEventListener("click", close);
+    return () => document.removeEventListener("click", close);
+  }, [openMenuId]);
 
   const fetchData = useCallback(async () => {
     const supabase = createClient();
@@ -337,6 +347,7 @@ export default function InsumosPage() {
       {showModal && establecimientoId && (
         <NuevoInsumoModal establecimientoId={establecimientoId} onClose={() => setShowModal(false)} onCreated={fetchData} />
       )}
+      {auditId && <AuditDrawer tabla="insumos" registroId={auditId} onClose={() => setAuditId(null)} />}
       {showImportModal && (
         <ImportModal
           title="Importar Insumos"
@@ -492,12 +503,27 @@ export default function InsumosPage() {
                               {ins.created_by ? (profilesMap[ins.created_by] ?? "—") : "—"}
                             </td>
                             <td className="px-5 py-4">
-                              <button className="text-xs font-medium px-3 py-1.5 rounded-lg"
-                                style={{ backgroundColor: "rgba(58,74,50,0.08)", color: "var(--color-campo)" }}
-                                onMouseEnter={(e) => { (e.currentTarget as HTMLButtonElement).style.backgroundColor = "rgba(58,74,50,0.15)"; }}
-                                onMouseLeave={(e) => { (e.currentTarget as HTMLButtonElement).style.backgroundColor = "rgba(58,74,50,0.08)"; }}>
-                                Editar
-                              </button>
+                              <div className="relative inline-block">
+                                <button
+                                  onClick={(e) => { e.stopPropagation(); setOpenMenuId(openMenuId === ins.id ? null : ins.id); }}
+                                  className="w-7 h-7 rounded-lg flex items-center justify-center"
+                                  style={{ color: "rgba(26,26,24,0.3)", backgroundColor: "transparent" }}
+                                  onMouseEnter={(e) => { (e.currentTarget as HTMLButtonElement).style.backgroundColor = "rgba(212,197,169,0.3)"; (e.currentTarget as HTMLButtonElement).style.color = "var(--color-tierra)"; }}
+                                  onMouseLeave={(e) => { (e.currentTarget as HTMLButtonElement).style.backgroundColor = "transparent"; (e.currentTarget as HTMLButtonElement).style.color = "rgba(26,26,24,0.3)"; }}>
+                                  <MoreHorizontal size={16} />
+                                </button>
+                                {openMenuId === ins.id && (
+                                  <div className="absolute right-0 top-full mt-1 z-20 rounded-xl overflow-hidden py-1"
+                                    style={{ backgroundColor: "#ffffff", boxShadow: "0 4px 20px rgba(26,26,24,0.14)", border: "1px solid rgba(212,197,169,0.5)", minWidth: 140 }}>
+                                    <button onClick={(e) => { e.stopPropagation(); setAuditId(ins.id); setOpenMenuId(null); }}
+                                      className="w-full px-4 py-2 text-sm text-left flex items-center gap-2" style={{ color: "rgba(26,26,24,0.6)" }}
+                                      onMouseEnter={(e) => { (e.currentTarget as HTMLButtonElement).style.backgroundColor = "rgba(212,197,169,0.2)"; }}
+                                      onMouseLeave={(e) => { (e.currentTarget as HTMLButtonElement).style.backgroundColor = "transparent"; }}>
+                                      <Clock size={13} />Ver historial
+                                    </button>
+                                  </div>
+                                )}
+                              </div>
                             </td>
                           </tr>
                         );

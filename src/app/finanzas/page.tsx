@@ -1,9 +1,10 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
-import { TrendingUp, TrendingDown, DollarSign, Plus, X, Loader2, AlertCircle, Download } from "lucide-react";
+import { TrendingUp, TrendingDown, DollarSign, Plus, X, Loader2, AlertCircle, Download, MoreHorizontal, Clock } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { useDraggable } from "@/lib/useDraggable";
+import { AuditDrawer } from "@/components/audit-drawer";
 import { exportToExcel, todayISO, slugifyName } from "@/lib/exportExcel";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -260,6 +261,15 @@ export default function FinanzasPage() {
   const [showModal, setShowModal] = useState(false);
   const [establecimientoNombre, setEstablecimientoNombre] = useState("");
   const [profilesMap, setProfilesMap] = useState<Record<string, string>>({});
+  const [auditId, setAuditId] = useState<string | null>(null);
+  const [openMenuId, setOpenMenuId] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!openMenuId) return;
+    function close() { setOpenMenuId(null); }
+    document.addEventListener("click", close);
+    return () => document.removeEventListener("click", close);
+  }, [openMenuId]);
 
   const fetchData = useCallback(async () => {
     const supabase = createClient();
@@ -328,6 +338,7 @@ export default function FinanzasPage() {
       {showModal && establecimientoId && (
         <NuevoGastoModal establecimientoId={establecimientoId} onClose={() => setShowModal(false)} onCreated={fetchData} />
       )}
+      {auditId && <AuditDrawer tabla="gastos" registroId={auditId} onClose={() => setAuditId(null)} />}
 
       <div className="flex flex-col min-h-full">
         {/* Header */}
@@ -473,7 +484,7 @@ export default function FinanzasPage() {
                     <table className="w-full">
                       <thead>
                         <tr style={{ borderBottom: "1px solid rgba(212,197,169,0.35)" }}>
-                          {["Fecha", "Concepto", "Categoría", "Tipo", "Monto", "Registrado por"].map((col) => (
+                          {["Fecha", "Concepto", "Categoría", "Tipo", "Monto", "Registrado por", ""].map((col) => (
                             <th key={col} className="px-6 py-3 text-left text-xs font-semibold tracking-wider uppercase" style={{ color: "rgba(26,26,24,0.38)", backgroundColor: "rgba(240,237,230,0.5)" }}>{col}</th>
                           ))}
                         </tr>
@@ -503,6 +514,29 @@ export default function FinanzasPage() {
                             </td>
                             <td className="px-6 py-3.5 text-sm" style={{ color: "rgba(26,26,24,0.5)" }}>
                               {mov.created_by ? (profilesMap[mov.created_by] ?? "—") : "—"}
+                            </td>
+                            <td className="px-4 py-3.5 text-right">
+                              <div className="relative inline-block">
+                                <button
+                                  onClick={(e) => { e.stopPropagation(); setOpenMenuId(openMenuId === mov.id ? null : mov.id); }}
+                                  className="w-7 h-7 rounded-lg flex items-center justify-center ml-auto"
+                                  style={{ color: "rgba(26,26,24,0.3)", backgroundColor: "transparent" }}
+                                  onMouseEnter={(e) => { (e.currentTarget as HTMLButtonElement).style.backgroundColor = "rgba(212,197,169,0.3)"; (e.currentTarget as HTMLButtonElement).style.color = "var(--color-tierra)"; }}
+                                  onMouseLeave={(e) => { (e.currentTarget as HTMLButtonElement).style.backgroundColor = "transparent"; (e.currentTarget as HTMLButtonElement).style.color = "rgba(26,26,24,0.3)"; }}>
+                                  <MoreHorizontal size={16} />
+                                </button>
+                                {openMenuId === mov.id && (
+                                  <div className="absolute right-0 top-full mt-1 z-20 rounded-xl overflow-hidden py-1"
+                                    style={{ backgroundColor: "#ffffff", boxShadow: "0 4px 20px rgba(26,26,24,0.14)", border: "1px solid rgba(212,197,169,0.5)", minWidth: 140 }}>
+                                    <button onClick={(e) => { e.stopPropagation(); setAuditId(mov.id); setOpenMenuId(null); }}
+                                      className="w-full px-4 py-2 text-sm text-left flex items-center gap-2" style={{ color: "rgba(26,26,24,0.6)" }}
+                                      onMouseEnter={(e) => { (e.currentTarget as HTMLButtonElement).style.backgroundColor = "rgba(212,197,169,0.2)"; }}
+                                      onMouseLeave={(e) => { (e.currentTarget as HTMLButtonElement).style.backgroundColor = "transparent"; }}>
+                                      <Clock size={13} />Ver historial
+                                    </button>
+                                  </div>
+                                )}
+                              </div>
                             </td>
                           </tr>
                         ))}

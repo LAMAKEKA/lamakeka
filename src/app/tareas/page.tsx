@@ -1,9 +1,10 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
-import { Plus, Check, ClipboardCheck, X, Loader2, AlertCircle, Download } from "lucide-react";
+import { Plus, Check, ClipboardCheck, X, Loader2, AlertCircle, Download, MoreHorizontal, Clock } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { useDraggable } from "@/lib/useDraggable";
+import { AuditDrawer } from "@/components/audit-drawer";
 import { exportToExcel, todayISO, slugifyName } from "@/lib/exportExcel";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -191,7 +192,7 @@ function NuevaTareaModal({ establecimientoId, onClose, onCreated }: ModalProps) 
 
 // ─── Tarea Row ────────────────────────────────────────────────────────────────
 
-function TareaRow({ tarea, onToggle, creatorName }: { tarea: Tarea; onToggle: (id: string) => void; creatorName: string }) {
+function TareaRow({ tarea, onToggle, creatorName, onAudit }: { tarea: Tarea; onToggle: (id: string) => void; creatorName: string; onAudit: (id: string) => void }) {
   const prioridad = PRIORIDAD_STYLE[tarea.prioridad];
   return (
     <div className="flex items-center gap-4 px-6 py-4" style={{ opacity: tarea.completada ? 0.65 : 1 }}>
@@ -217,6 +218,14 @@ function TareaRow({ tarea, onToggle, creatorName }: { tarea: Tarea; onToggle: (i
       <div className="shrink-0" style={{ minWidth: 140 }}>
         <span className="text-xs" style={{ color: "rgba(26,26,24,0.45)" }}>{creatorName}</span>
       </div>
+      <button onClick={() => onAudit(tarea.id)}
+        className="w-7 h-7 rounded-lg flex items-center justify-center shrink-0"
+        style={{ color: "rgba(26,26,24,0.3)" }}
+        title="Ver historial"
+        onMouseEnter={(e) => { (e.currentTarget as HTMLButtonElement).style.backgroundColor = "rgba(212,197,169,0.3)"; (e.currentTarget as HTMLButtonElement).style.color = "var(--color-tierra)"; }}
+        onMouseLeave={(e) => { (e.currentTarget as HTMLButtonElement).style.backgroundColor = "transparent"; (e.currentTarget as HTMLButtonElement).style.color = "rgba(26,26,24,0.3)"; }}>
+        <Clock size={14} />
+      </button>
     </div>
   );
 }
@@ -232,6 +241,7 @@ export default function TareasPage() {
   const [showModal, setShowModal] = useState(false);
   const [establecimientoNombre, setEstablecimientoNombre] = useState("");
   const [profilesMap, setProfilesMap] = useState<Record<string, string>>({});
+  const [auditId, setAuditId] = useState<string | null>(null);
 
   const fetchData = useCallback(async () => {
     const supabase = createClient();
@@ -299,6 +309,7 @@ export default function TareasPage() {
       {showModal && establecimientoId && (
         <NuevaTareaModal establecimientoId={establecimientoId} onClose={() => setShowModal(false)} onCreated={fetchData} />
       )}
+      {auditId && <AuditDrawer tabla="tareas" registroId={auditId} onClose={() => setAuditId(null)} />}
 
       <div className="flex flex-col min-h-full">
         <div className="px-4 md:px-8 pt-7 pb-5 border-b" style={{ backgroundColor: "#ffffff", borderColor: "rgba(212,197,169,0.5)" }}>
@@ -384,7 +395,7 @@ export default function TareasPage() {
                     </div>
                   </div>
                   <div className="divide-y" style={{ borderColor: "rgba(212,197,169,0.25)" }}>
-                    {pendientes.map((t) => <TareaRow key={t.id} tarea={t} onToggle={toggleTarea} creatorName={t.created_by ? (profilesMap[t.created_by] ?? "—") : "—"} />)}
+                    {pendientes.map((t) => <TareaRow key={t.id} tarea={t} onToggle={toggleTarea} creatorName={t.created_by ? (profilesMap[t.created_by] ?? "—") : "—"} onAudit={setAuditId} />)}
                   </div>
                 </div>
               )}
@@ -406,7 +417,7 @@ export default function TareasPage() {
                     </div>
                   </div>
                   <div className="divide-y" style={{ borderColor: "rgba(212,197,169,0.25)" }}>
-                    {completadas.map((t) => <TareaRow key={t.id} tarea={t} onToggle={toggleTarea} creatorName={t.created_by ? (profilesMap[t.created_by] ?? "—") : "—"} />)}
+                    {completadas.map((t) => <TareaRow key={t.id} tarea={t} onToggle={toggleTarea} creatorName={t.created_by ? (profilesMap[t.created_by] ?? "—") : "—"} onAudit={setAuditId} />)}
                   </div>
                 </div>
               )}

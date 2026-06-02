@@ -18,6 +18,13 @@ interface Animal {
   tipo: string | null;
 }
 
+interface PrenezReport {
+  categoria: string;
+  fecha_diagnostico: string;
+  total_diagnosticadas: number;
+  prenadas: number;
+}
+
 interface Gasto {
   categoria: string;
   tipo: "ingreso" | "gasto";
@@ -178,7 +185,7 @@ function Section({ title, children }: { title: string; children: React.ReactNode
 
 // ─── Tabs ─────────────────────────────────────────────────────────────────────
 
-type TabHaciendaProps = { animales: Animal[]; loading: boolean };
+type TabHaciendaProps = { animales: Animal[]; prenezData: PrenezReport[]; loading: boolean };
 type TabFinanzasProps = { gastos: Gasto[]; loading: boolean };
 type TabInsumosProps = { insumos: Insumo[]; loading: boolean };
 type TabTareasProps = { tareas: Tarea[]; loading: boolean };
@@ -187,7 +194,7 @@ type TabTareasProps = { tareas: Tarea[]; loading: boolean };
 
 const TIPOS_EGRESO_H = new Set<string>(["Venta", "Muerte", "Transferencia salida"]);
 
-function TabHacienda({ animales, loading }: TabHaciendaProps) {
+function TabHacienda({ animales, prenezData, loading }: TabHaciendaProps) {
   if (loading) return <LoadingState />;
   if (animales.length === 0) return <EmptyState label="Sin registros de hacienda" />;
 
@@ -287,6 +294,35 @@ function TabHacienda({ animales, loading }: TabHaciendaProps) {
           )}
         </Section>
       </div>
+
+      {prenezData.length > 0 && (() => {
+        const byCat = prenezData.reduce((acc, p) => {
+          if (!acc[p.categoria]) acc[p.categoria] = { total: 0, prenadas: 0 };
+          acc[p.categoria].total += p.total_diagnosticadas;
+          acc[p.categoria].prenadas += p.prenadas;
+          return acc;
+        }, {} as Record<string, { total: number; prenadas: number }>);
+        const chartData = Object.entries(byCat)
+          .map(([name, d]) => ({ name, pct: d.total > 0 ? Math.round((d.prenadas / d.total) * 100) : 0 }))
+          .sort((a, b) => b.pct - a.pct);
+        return (
+          <Section title="Porcentaje de preñez por categoría">
+            <ResponsiveContainer width="100%" height={180}>
+              <BarChart data={chartData} barSize={36}>
+                <CartesianGrid strokeDasharray="3 3" stroke="rgba(212,197,169,0.3)" vertical={false} />
+                <XAxis dataKey="name" tick={{ fontSize: 12, fill: "rgba(26,26,24,0.5)" }} axisLine={false} tickLine={false} />
+                <YAxis domain={[0, 100]} tick={{ fontSize: 12, fill: "rgba(26,26,24,0.5)" }} axisLine={false} tickLine={false} tickFormatter={(v) => `${v}%`} />
+                <Tooltip content={<CustomTooltip />} />
+                <Bar dataKey="pct" name="% Preñez" radius={[6, 6, 0, 0]}>
+                  {chartData.map((entry, idx) => (
+                    <Cell key={idx} fill={entry.pct >= 70 ? "#16a34a" : entry.pct >= 50 ? "#d97706" : "#dc2626"} />
+                  ))}
+                </Bar>
+              </BarChart>
+            </ResponsiveContainer>
+          </Section>
+        );
+      })()}
 
       <Section title="Top 5 potreros por stock neto">
         {top5.length === 0 ? (
@@ -636,6 +672,7 @@ export default function ReportesPage() {
 
   // Data per tab
   const [animales, setAnimales]   = useState<Animal[]>([]);
+  const [prenezData, setPrenezData] = useState<PrenezReport[]>([]);
   const [gastos, setGastos]       = useState<Gasto[]>([]);
   const [insumos, setInsumos]     = useState<Insumo[]>([]);
   const [tareas, setTareas]       = useState<Tarea[]>([]);
@@ -669,12 +706,12 @@ export default function ReportesPage() {
     if (loadedH) return;
     setLoadingH(true);
     const supabase = createClient();
-    const { data } = await supabase
-      .from("animales")
-      .select("categoria, potrero, cantidad, fecha, tipo")
-      .eq("establecimiento_id", estId)
-      .order("fecha", { ascending: false });
-    setAnimales(data ?? []);
+    const [animalesRes, prenezRes] = await Promise.all([
+      supabase.from("animales").select("categoria, potrero, cantidad, fecha, tipo").eq("establecimiento_id", estId).order("fecha", { ascending: false }),
+      supabase.from("prenez").select("categoria, fecha_diagnostico, total_diagnosticadas, prenadas").eq("establecimiento_id", estId),
+    ]);
+    setAnimales(animalesRes.data ?? []);
+    setPrenezData(prenezRes.data ?? []);
     setLoadedH(true);
     setLoadingH(false);
   }, [loadedH]);
@@ -794,7 +831,7 @@ export default function ReportesPage() {
       </div>
 
       {/* Tab content */}
-      {activeTab === "hacienda" && <TabHacienda animales={animales} loading={loadingH} />}
+      {activeTab === "hacienda" && <TabHacienda animales={animales} prenezData={prenezData} loading={loadingH} />}
       {activeTab === "finanzas" && <TabFinanzas gastos={gastos} loading={loadingF} />}
       {activeTab === "insumos"  && <TabInsumos insumos={insumos} loading={loadingI} />}
       {activeTab === "tareas"   && <TabTareas tareas={tareas} loading={loadingT} />}
