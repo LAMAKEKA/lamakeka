@@ -17,6 +17,7 @@ interface Gasto {
   tipo: "ingreso" | "gasto";
   monto: number;
   fecha: string;
+  created_by: string | null;
 }
 
 const CATEGORIAS_GASTO = [
@@ -111,6 +112,7 @@ function NuevoGastoModal({ establecimientoId, onClose, onCreated }: ModalProps) 
     setLoading(true);
     setError(null);
     const supabase = createClient();
+    const { data: { user } } = await supabase.auth.getUser();
     const { error: dbError } = await supabase.from("gastos").insert({
       establecimiento_id: establecimientoId,
       concepto: form.concepto.trim(),
@@ -118,6 +120,7 @@ function NuevoGastoModal({ establecimientoId, onClose, onCreated }: ModalProps) 
       tipo: form.tipo,
       monto,
       fecha: form.fecha,
+      created_by: user?.id ?? null,
     });
     if (dbError) { setError(dbError.message); setLoading(false); return; }
     onCreated();
@@ -254,6 +257,7 @@ export default function FinanzasPage() {
   const [establecimientoId, setEstablecimientoId] = useState<string | null>(null);
   const [showModal, setShowModal] = useState(false);
   const [establecimientoNombre, setEstablecimientoNombre] = useState("");
+  const [profilesMap, setProfilesMap] = useState<Record<string, string>>({});
 
   const fetchData = useCallback(async () => {
     const supabase = createClient();
@@ -265,6 +269,15 @@ export default function FinanzasPage() {
     setEstablecimientoNombre(estab.nombre ?? "");
     const { data } = await supabase.from("gastos").select("*").eq("establecimiento_id", estab.id).order("fecha", { ascending: false });
     setGastos(data ?? []);
+
+    const ids = [...new Set((data ?? []).map((r) => r.created_by).filter(Boolean))] as string[];
+    if (ids.length > 0) {
+      const { data: profs } = await supabase.from("profiles").select("id, email, full_name").in("id", ids);
+      const map: Record<string, string> = {};
+      (profs ?? []).forEach((p) => { map[p.id] = p.full_name || p.email || "—"; });
+      setProfilesMap(map);
+    }
+
     setLoading(false);
   }, []);
 
@@ -458,7 +471,7 @@ export default function FinanzasPage() {
                     <table className="w-full">
                       <thead>
                         <tr style={{ borderBottom: "1px solid rgba(212,197,169,0.35)" }}>
-                          {["Fecha", "Concepto", "Categoría", "Tipo", "Monto"].map((col) => (
+                          {["Fecha", "Concepto", "Categoría", "Tipo", "Monto", "Registrado por"].map((col) => (
                             <th key={col} className="px-6 py-3 text-left text-xs font-semibold tracking-wider uppercase" style={{ color: "rgba(26,26,24,0.38)", backgroundColor: "rgba(240,237,230,0.5)" }}>{col}</th>
                           ))}
                         </tr>
@@ -485,6 +498,9 @@ export default function FinanzasPage() {
                               <span className="text-sm font-bold tabular-nums" style={{ color: mov.tipo === "ingreso" ? "#16a34a" : "#dc2626" }}>
                                 {mov.tipo === "ingreso" ? "+" : "-"}{fmtFull(applyFilters(mov.monto, moneda, iva), moneda)}
                               </span>
+                            </td>
+                            <td className="px-6 py-3.5 text-sm" style={{ color: "rgba(26,26,24,0.5)" }}>
+                              {mov.created_by ? (profilesMap[mov.created_by] ?? "—") : "—"}
                             </td>
                           </tr>
                         ))}

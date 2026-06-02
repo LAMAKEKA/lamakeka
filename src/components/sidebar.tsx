@@ -2,7 +2,7 @@
 
 import Image from "next/image";
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import {
   LayoutDashboard,
   Beef,
@@ -12,7 +12,9 @@ import {
   BarChart2,
   PieChart,
   MessageCircle,
+  LogOut,
 } from "lucide-react";
+import { createClient } from "@/lib/supabase/client";
 
 const navItems = [
   { href: "/", label: "Dashboard", icon: LayoutDashboard },
@@ -34,6 +36,13 @@ interface SidebarProps {
 
 export function Sidebar({ onClose }: SidebarProps) {
   const pathname = usePathname();
+  const router = useRouter();
+
+  async function handleSignOut() {
+    const supabase = createClient();
+    await supabase.auth.signOut();
+    router.push("/login");
+  }
 
   return (
     <aside
@@ -179,6 +188,22 @@ export function Sidebar({ onClose }: SidebarProps) {
               Administrador
             </p>
           </div>
+          <button
+            onClick={handleSignOut}
+            title="Cerrar sesión"
+            className="w-7 h-7 rounded-lg flex items-center justify-center shrink-0 transition-all"
+            style={{ color: "rgba(255,255,255,0.35)" }}
+            onMouseEnter={(e) => {
+              (e.currentTarget as HTMLButtonElement).style.backgroundColor = "rgba(255,255,255,0.1)";
+              (e.currentTarget as HTMLButtonElement).style.color = "rgba(255,255,255,0.8)";
+            }}
+            onMouseLeave={(e) => {
+              (e.currentTarget as HTMLButtonElement).style.backgroundColor = "transparent";
+              (e.currentTarget as HTMLButtonElement).style.color = "rgba(255,255,255,0.35)";
+            }}
+          >
+            <LogOut size={15} />
+          </button>
         </div>
       </div>
     </aside>

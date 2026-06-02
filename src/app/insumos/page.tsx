@@ -18,6 +18,7 @@ interface Insumo {
   inventario: number;
   unidad: string;
   minimo: number;
+  created_by: string | null;
 }
 
 const CATEGORIAS: Categoria[] = ["ALIMENTO", "SANIDAD", "INSUMOS AGRÍCOLAS", "ESTRUCTURA"];
@@ -124,6 +125,7 @@ function NuevoInsumoModal({ establecimientoId, onClose, onCreated }: ModalProps)
     setLoading(true);
     setError(null);
     const supabase = createClient();
+    const { data: { user } } = await supabase.auth.getUser();
     const { error: dbError } = await supabase.from("insumos").insert({
       establecimiento_id: establecimientoId,
       nombre: form.nombre.trim(),
@@ -132,6 +134,7 @@ function NuevoInsumoModal({ establecimientoId, onClose, onCreated }: ModalProps)
       unidad: form.unidad.trim(),
       minimo: parseFloat(form.minimo) || 0,
       emoji: form.emoji,
+      created_by: user?.id ?? null,
     });
     if (dbError) { setError(dbError.message); setLoading(false); return; }
     onCreated();
@@ -252,6 +255,7 @@ export default function InsumosPage() {
   const [showImportModal, setShowImportModal] = useState(false);
   const [ajustes, setAjustes] = useState<Record<string, number>>({});
   const [establecimientoNombre, setEstablecimientoNombre] = useState("");
+  const [profilesMap, setProfilesMap] = useState<Record<string, string>>({});
 
   const fetchData = useCallback(async () => {
     const supabase = createClient();
@@ -263,6 +267,15 @@ export default function InsumosPage() {
     setEstablecimientoNombre(estab.nombre ?? "");
     const { data } = await supabase.from("insumos").select("*").eq("establecimiento_id", estab.id).order("categoria").order("nombre");
     setInsumos(data ?? []);
+
+    const ids = [...new Set((data ?? []).map((r) => r.created_by).filter(Boolean))] as string[];
+    if (ids.length > 0) {
+      const { data: profs } = await supabase.from("profiles").select("id, email, full_name").in("id", ids);
+      const map: Record<string, string> = {};
+      (profs ?? []).forEach((p) => { map[p.id] = p.full_name || p.email || "—"; });
+      setProfilesMap(map);
+    }
+
     setLoading(false);
   }, []);
 
@@ -298,6 +311,7 @@ export default function InsumosPage() {
   async function handleImport(validRows: Record<string, unknown>[]) {
     if (!establecimientoId) throw new Error("No se encontró el establecimiento.");
     const supabase = createClient();
+    const { data: { user } } = await supabase.auth.getUser();
     const toInsert = validRows.map((r) => {
       const categoria = String(r["Categoría"]).trim();
       return {
@@ -308,6 +322,7 @@ export default function InsumosPage() {
         unidad: String(r["Unidad"]).trim(),
         minimo: Number(r["Mínimo"] ?? r["Minimo"] ?? 0),
         emoji: CAT_DEFAULT_EMOJI[categoria] ?? "📦",
+        created_by: user?.id ?? null,
       };
     });
     const { error } = await supabase.from("insumos").insert(toInsert);
@@ -405,11 +420,12 @@ export default function InsumosPage() {
                     <thead>
                       <tr style={{ borderBottom: "1px solid rgba(212,197,169,0.3)" }}>
                         {[
-                          { label: "Producto",   width: "w-[30%]" },
-                          { label: "Inventario", width: "w-[22%]" },
-                          { label: "Mínimo",     width: "w-[14%]" },
-                          { label: "Registrar",  width: "w-[20%]" },
-                          { label: "Acciones",   width: "w-[14%]" },
+                          { label: "Producto",        width: "w-[22%]" },
+                          { label: "Inventario",      width: "w-[18%]" },
+                          { label: "Mínimo",          width: "w-[10%]" },
+                          { label: "Registrar",       width: "w-[16%]" },
+                          { label: "Registrado por",  width: "w-[20%]" },
+                          { label: "Acciones",        width: "w-[14%]" },
                         ].map(({ label, width }) => (
                           <th key={label} className={`${width} px-5 py-3 text-left text-xs font-semibold tracking-wider uppercase`} style={{ color: "rgba(26,26,24,0.38)", backgroundColor: "rgba(240,237,230,0.3)" }}>
                             {label}
@@ -469,6 +485,9 @@ export default function InsumosPage() {
                                   </button>
                                 )}
                               </div>
+                            </td>
+                            <td className="px-5 py-4 text-sm" style={{ color: "rgba(26,26,24,0.5)" }}>
+                              {ins.created_by ? (profilesMap[ins.created_by] ?? "—") : "—"}
                             </td>
                             <td className="px-5 py-4">
                               <button className="text-xs font-medium px-3 py-1.5 rounded-lg"

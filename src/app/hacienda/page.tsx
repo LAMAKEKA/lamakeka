@@ -15,6 +15,7 @@ interface Animal {
   cantidad: number;
   fecha: string;
   responsable: string;
+  created_by: string | null;
 }
 
 const CATEGORIAS = ["Terneros", "Novillos", "Vacas", "Vaquillonas", "Toros"] as const;
@@ -139,6 +140,7 @@ function NuevoAnimalModal({ establecimientoId, onClose, onCreated }: ModalProps)
     setLoading(true);
     setError(null);
     const supabase = createClient();
+    const { data: { user } } = await supabase.auth.getUser();
 
     const { error: dbError } = await supabase.from("animales").insert({
       establecimiento_id: establecimientoId,
@@ -147,6 +149,7 @@ function NuevoAnimalModal({ establecimientoId, onClose, onCreated }: ModalProps)
       cantidad: cant,
       fecha: form.fecha,
       responsable: form.responsable.trim(),
+      created_by: user?.id ?? null,
     });
 
     if (dbError) {
@@ -287,6 +290,7 @@ export default function HaciendaPage() {
   const [showModal, setShowModal] = useState(false);
   const [showImportModal, setShowImportModal] = useState(false);
   const [establecimientoNombre, setEstablecimientoNombre] = useState("");
+  const [profilesMap, setProfilesMap] = useState<Record<string, string>>({});
 
   const fetchData = useCallback(async () => {
     const supabase = createClient();
@@ -310,11 +314,20 @@ export default function HaciendaPage() {
 
     const { data } = await supabase
       .from("animales")
-      .select("id, categoria, potrero, cantidad, fecha, responsable")
+      .select("id, categoria, potrero, cantidad, fecha, responsable, created_by")
       .eq("establecimiento_id", estab.id)
       .order("created_at", { ascending: false });
 
     setAnimales(data ?? []);
+
+    const ids = [...new Set((data ?? []).map((r) => r.created_by).filter(Boolean))] as string[];
+    if (ids.length > 0) {
+      const { data: profs } = await supabase.from("profiles").select("id, email, full_name").in("id", ids);
+      const map: Record<string, string> = {};
+      (profs ?? []).forEach((p) => { map[p.id] = p.full_name || p.email || "—"; });
+      setProfilesMap(map);
+    }
+
     setLoading(false);
   }, []);
 
@@ -349,6 +362,7 @@ export default function HaciendaPage() {
   async function handleImport(validRows: Record<string, unknown>[]) {
     if (!establecimientoId) throw new Error("No se encontró el establecimiento.");
     const supabase = createClient();
+    const { data: { user } } = await supabase.auth.getUser();
     const toInsert = validRows.map((r) => ({
       establecimiento_id: establecimientoId,
       categoria: String(r["Categoría"]).trim(),
@@ -356,6 +370,7 @@ export default function HaciendaPage() {
       cantidad: Number(r["Cantidad"]),
       fecha: parseXlsxDate(r["Fecha"]),
       responsable: String(r["Responsable"]).trim(),
+      created_by: user?.id ?? null,
     }));
     const { error } = await supabase.from("animales").insert(toInsert);
     if (error) throw new Error(error.message);
@@ -472,7 +487,7 @@ export default function HaciendaPage() {
               <table className="w-full">
                 <thead>
                   <tr style={{ borderBottom: "1px solid rgba(212,197,169,0.4)" }}>
-                    {["Categoría", "Potrero", "Cantidad", "Fecha", "Responsable", ""].map((col) => (
+                    {["Categoría", "Potrero", "Cantidad", "Fecha", "Responsable", "Registrado por", ""].map((col) => (
                       <th key={col} className="px-6 py-3.5 text-left text-xs font-semibold tracking-wider uppercase" style={{ color: "rgba(26,26,24,0.38)", backgroundColor: "rgba(240,237,230,0.5)" }}>
                         {col}
                       </th>
@@ -500,6 +515,9 @@ export default function HaciendaPage() {
                           </div>
                           <span className="text-sm" style={{ color: "var(--color-tierra)" }}>{row.responsable}</span>
                         </div>
+                      </td>
+                      <td className="px-6 py-4 text-sm" style={{ color: "rgba(26,26,24,0.5)" }}>
+                        {row.created_by ? (profilesMap[row.created_by] ?? "—") : "—"}
                       </td>
                       <td className="px-4 py-4 text-right">
                         <button className="w-7 h-7 rounded-lg flex items-center justify-center ml-auto" style={{ color: "rgba(26,26,24,0.3)" }}

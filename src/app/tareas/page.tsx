@@ -15,6 +15,7 @@ interface Tarea {
   fecha_limite: string;
   responsable: string;
   completada: boolean;
+  created_by: string | null;
 }
 
 const PRIORIDAD_STYLE = {
@@ -68,6 +69,7 @@ function NuevaTareaModal({ establecimientoId, onClose, onCreated }: ModalProps) 
     setLoading(true);
     setError(null);
     const supabase = createClient();
+    const { data: { user } } = await supabase.auth.getUser();
     const { error: dbError } = await supabase.from("tareas").insert({
       establecimiento_id: establecimientoId,
       titulo: form.titulo.trim(),
@@ -76,6 +78,7 @@ function NuevaTareaModal({ establecimientoId, onClose, onCreated }: ModalProps) 
       fecha_limite: form.fecha_limite,
       responsable: form.responsable.trim(),
       completada: false,
+      created_by: user?.id ?? null,
     });
     if (dbError) { setError(dbError.message); setLoading(false); return; }
     onCreated();
@@ -186,7 +189,7 @@ function NuevaTareaModal({ establecimientoId, onClose, onCreated }: ModalProps) 
 
 // ─── Tarea Row ────────────────────────────────────────────────────────────────
 
-function TareaRow({ tarea, onToggle }: { tarea: Tarea; onToggle: (id: string) => void }) {
+function TareaRow({ tarea, onToggle, creatorName }: { tarea: Tarea; onToggle: (id: string) => void; creatorName: string }) {
   const prioridad = PRIORIDAD_STYLE[tarea.prioridad];
   return (
     <div className="flex items-center gap-4 px-6 py-4" style={{ opacity: tarea.completada ? 0.65 : 1 }}>
@@ -209,6 +212,9 @@ function TareaRow({ tarea, onToggle }: { tarea: Tarea; onToggle: (id: string) =>
         </div>
         <span className="text-sm" style={{ color: "var(--color-tierra)" }}>{tarea.responsable}</span>
       </div>
+      <div className="shrink-0" style={{ minWidth: 140 }}>
+        <span className="text-xs" style={{ color: "rgba(26,26,24,0.45)" }}>{creatorName}</span>
+      </div>
     </div>
   );
 }
@@ -223,6 +229,7 @@ export default function TareasPage() {
   const [userName, setUserName] = useState("");
   const [showModal, setShowModal] = useState(false);
   const [establecimientoNombre, setEstablecimientoNombre] = useState("");
+  const [profilesMap, setProfilesMap] = useState<Record<string, string>>({});
 
   const fetchData = useCallback(async () => {
     const supabase = createClient();
@@ -241,6 +248,15 @@ export default function TareasPage() {
 
     const { data } = await supabase.from("tareas").select("*").eq("establecimiento_id", estab.id).order("fecha_limite").order("created_at", { ascending: false });
     setTareas(data ?? []);
+
+    const ids = [...new Set((data ?? []).map((r) => r.created_by).filter(Boolean))] as string[];
+    if (ids.length > 0) {
+      const { data: profs } = await supabase.from("profiles").select("id, email, full_name").in("id", ids);
+      const map: Record<string, string> = {};
+      (profs ?? []).forEach((p) => { map[p.id] = p.full_name || p.email || "—"; });
+      setProfilesMap(map);
+    }
+
     setLoading(false);
   }, []);
 
@@ -362,10 +378,11 @@ export default function TareasPage() {
                       <span style={{ minWidth: 60, textAlign: "right" }}>Prioridad</span>
                       <span style={{ minWidth: 90, textAlign: "right" }}>Fecha límite</span>
                       <span style={{ minWidth: 148 }}>Responsable</span>
+                      <span style={{ minWidth: 140 }}>Registrado por</span>
                     </div>
                   </div>
                   <div className="divide-y" style={{ borderColor: "rgba(212,197,169,0.25)" }}>
-                    {pendientes.map((t) => <TareaRow key={t.id} tarea={t} onToggle={toggleTarea} />)}
+                    {pendientes.map((t) => <TareaRow key={t.id} tarea={t} onToggle={toggleTarea} creatorName={t.created_by ? (profilesMap[t.created_by] ?? "—") : "—"} />)}
                   </div>
                 </div>
               )}
@@ -383,10 +400,11 @@ export default function TareasPage() {
                       <span style={{ minWidth: 60, textAlign: "right" }}>Prioridad</span>
                       <span style={{ minWidth: 90, textAlign: "right" }}>Fecha límite</span>
                       <span style={{ minWidth: 148 }}>Responsable</span>
+                      <span style={{ minWidth: 140 }}>Registrado por</span>
                     </div>
                   </div>
                   <div className="divide-y" style={{ borderColor: "rgba(212,197,169,0.25)" }}>
-                    {completadas.map((t) => <TareaRow key={t.id} tarea={t} onToggle={toggleTarea} />)}
+                    {completadas.map((t) => <TareaRow key={t.id} tarea={t} onToggle={toggleTarea} creatorName={t.created_by ? (profilesMap[t.created_by] ?? "—") : "—"} />)}
                   </div>
                 </div>
               )}
