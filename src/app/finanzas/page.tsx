@@ -362,7 +362,7 @@ export default function FinanzasPage() {
                 </button>
               )}
               <button onClick={() => setShowModal(true)} className="flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-semibold text-white hover:opacity-90" style={{ backgroundColor: "var(--color-campo)" }}>
-                <Plus size={16} strokeWidth={2.5} />Nuevo Gasto
+                <Plus size={16} strokeWidth={2.5} />Nuevo Movimiento
               </button>
             </div>
           </div>

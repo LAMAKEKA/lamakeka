@@ -15,8 +15,20 @@ interface Animal {
   cantidad: number;
   fecha: string;
   responsable: string;
+  tipo: string | null;
   created_by: string | null;
 }
+
+type TipoMovimiento = "Ingreso" | "Venta" | "Muerte" | "Transferencia salida";
+
+const TIPOS_MOVIMIENTO: TipoMovimiento[] = ["Ingreso", "Venta", "Muerte", "Transferencia salida"];
+
+const TIPO_COLORS: Record<TipoMovimiento, { bg: string; color: string }> = {
+  "Ingreso":              { bg: "rgba(22,163,74,0.09)",   color: "#16a34a" },
+  "Venta":                { bg: "rgba(37,99,235,0.09)",    color: "#2563eb" },
+  "Muerte":               { bg: "rgba(220,38,38,0.07)",    color: "#dc2626" },
+  "Transferencia salida": { bg: "rgba(107,114,128,0.12)",  color: "#6b7280" },
+};
 
 const CATEGORIAS = ["Terneros", "Novillos", "Vacas", "Vaquillonas", "Toros"] as const;
 
@@ -39,6 +51,8 @@ const FORM_EMPTY = {
   cantidad: "",
   fecha: new Date().toISOString().split("T")[0],
   responsable: "",
+  tipo: "Ingreso" as TipoMovimiento,
+  monto_venta: "",
 };
 
 // ─── Import config ────────────────────────────────────────────────────────────
@@ -84,6 +98,15 @@ function CategoriaChip({ categoria }: { categoria: string }) {
   return (
     <span className="inline-block text-xs font-medium px-2.5 py-1 rounded-full" style={{ backgroundColor: style.bg, color: style.color }}>
       {categoria}
+    </span>
+  );
+}
+
+function TipoChip({ tipo }: { tipo: string }) {
+  const style = TIPO_COLORS[tipo as TipoMovimiento] ?? { bg: "rgba(212,197,169,0.3)", color: "var(--color-cuero)" };
+  return (
+    <span className="inline-block text-xs font-medium px-2.5 py-1 rounded-full" style={{ backgroundColor: style.bg, color: style.color }}>
+      {tipo}
     </span>
   );
 }
@@ -137,6 +160,15 @@ function NuevoAnimalModal({ establecimientoId, onClose, onCreated }: ModalProps)
       return;
     }
 
+    let montoVenta: number | null = null;
+    if (form.tipo === "Venta") {
+      montoVenta = parseFloat(form.monto_venta);
+      if (isNaN(montoVenta) || montoVenta <= 0) {
+        setError("Ingresá el monto total de la venta.");
+        return;
+      }
+    }
+
     setLoading(true);
     setError(null);
     const supabase = createClient();
@@ -149,6 +181,7 @@ function NuevoAnimalModal({ establecimientoId, onClose, onCreated }: ModalProps)
       cantidad: cant,
       fecha: form.fecha,
       responsable: form.responsable.trim(),
+      tipo: form.tipo,
       created_by: user?.id ?? null,
     });
 
@@ -156,6 +189,18 @@ function NuevoAnimalModal({ establecimientoId, onClose, onCreated }: ModalProps)
       setError(dbError.message);
       setLoading(false);
       return;
+    }
+
+    if (form.tipo === "Venta" && montoVenta) {
+      await supabase.from("gastos").insert({
+        establecimiento_id: establecimientoId,
+        concepto: `Venta de ${form.categoria} — ${form.potrero.trim()}`,
+        categoria: "Venta de hacienda",
+        tipo: "ingreso",
+        monto: montoVenta,
+        fecha: form.fecha,
+        created_by: user?.id ?? null,
+      });
     }
 
     onCreated();
@@ -182,6 +227,29 @@ function NuevoAnimalModal({ establecimientoId, onClose, onCreated }: ModalProps)
         </div>
 
         <form onSubmit={handleSubmit} className="flex flex-col gap-4">
+          {/* Tipo de movimiento */}
+          <div>
+            <label className="form-label">Tipo de movimiento</label>
+            <div className="grid grid-cols-2 gap-2">
+              {TIPOS_MOVIMIENTO.map((t) => {
+                const isSelected = form.tipo === t;
+                const style = TIPO_COLORS[t];
+                return (
+                  <button key={t} type="button"
+                    onClick={() => setForm((f) => ({ ...f, tipo: t, monto_venta: "" }))}
+                    className="py-2 rounded-xl text-xs font-semibold transition-all"
+                    style={{
+                      backgroundColor: isSelected ? style.bg : "transparent",
+                      color: isSelected ? style.color : "rgba(26,26,24,0.4)",
+                      border: `1.5px solid ${isSelected ? style.color : "rgba(212,197,169,0.6)"}`,
+                    }}>
+                    {t}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+
           {/* Categoría */}
           <div>
             <label className="form-label">Categoría</label>
@@ -257,6 +325,28 @@ function NuevoAnimalModal({ establecimientoId, onClose, onCreated }: ModalProps)
             />
           </div>
 
+          {/* Monto venta — solo si tipo = Venta */}
+          {form.tipo === "Venta" && (
+            <div>
+              <label className="form-label">Monto total de la venta (ARS)</label>
+              <input
+                type="number"
+                min="0"
+                step="0.01"
+                value={form.monto_venta}
+                onChange={(e) => set("monto_venta")(e.target.value)}
+                placeholder="0"
+                className="w-full px-4 py-3 rounded-xl text-sm outline-none"
+                style={{ border: "1.5px solid #2563eb", backgroundColor: "rgba(37,99,235,0.04)", color: "var(--color-tierra)" }}
+                onFocus={(e) => { e.target.style.boxShadow = "0 0 0 3px rgba(37,99,235,0.1)"; }}
+                onBlur={(e) => { e.target.style.boxShadow = "none"; }}
+              />
+              <p className="text-xs mt-1.5" style={{ color: "rgba(37,99,235,0.7)" }}>
+                Se registrará automáticamente como ingreso en Finanzas.
+              </p>
+            </div>
+          )}
+
           {error && (
             <div className="flex items-center gap-2 px-4 py-3 rounded-xl text-sm" style={{ backgroundColor: "rgba(220,38,38,0.06)", color: "#dc2626", border: "1px solid rgba(220,38,38,0.15)" }}>
               <AlertCircle size={15} className="shrink-0" />
@@ -314,7 +404,7 @@ export default function HaciendaPage() {
 
     const { data } = await supabase
       .from("animales")
-      .select("id, categoria, potrero, cantidad, fecha, responsable, created_by")
+      .select("id, categoria, potrero, cantidad, fecha, responsable, tipo, created_by")
       .eq("establecimiento_id", estab.id)
       .order("created_at", { ascending: false });
 
@@ -487,7 +577,7 @@ export default function HaciendaPage() {
               <table className="w-full">
                 <thead>
                   <tr style={{ borderBottom: "1px solid rgba(212,197,169,0.4)" }}>
-                    {["Categoría", "Potrero", "Cantidad", "Fecha", "Responsable", "Registrado por", ""].map((col) => (
+                    {["Tipo", "Categoría", "Potrero", "Cantidad", "Fecha", "Responsable", "Registrado por", ""].map((col) => (
                       <th key={col} className="px-6 py-3.5 text-left text-xs font-semibold tracking-wider uppercase" style={{ color: "rgba(26,26,24,0.38)", backgroundColor: "rgba(240,237,230,0.5)" }}>
                         {col}
                       </th>
@@ -501,6 +591,7 @@ export default function HaciendaPage() {
                       onMouseEnter={(e) => { (e.currentTarget as HTMLTableRowElement).style.backgroundColor = "rgba(240,237,230,0.4)"; }}
                       onMouseLeave={(e) => { (e.currentTarget as HTMLTableRowElement).style.backgroundColor = "transparent"; }}
                     >
+                      <td className="px-6 py-4"><TipoChip tipo={row.tipo ?? "Ingreso"} /></td>
                       <td className="px-6 py-4"><CategoriaChip categoria={row.categoria} /></td>
                       <td className="px-6 py-4 text-sm font-medium" style={{ color: "var(--color-tierra)" }}>{row.potrero}</td>
                       <td className="px-6 py-4">
