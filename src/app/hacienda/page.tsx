@@ -5,6 +5,7 @@ import { Plus, Search, MoreHorizontal, Beef, X, Loader2, AlertCircle, Download, 
 import { createClient } from "@/lib/supabase/client";
 import { exportToExcel, todayISO, slugifyName, parseXlsxDate } from "@/lib/exportExcel";
 import { ImportModal } from "@/components/import-modal";
+import { useDraggable } from "@/lib/useDraggable";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -29,6 +30,8 @@ const TIPO_COLORS: Record<TipoMovimiento, { bg: string; color: string }> = {
   "Muerte":               { bg: "rgba(220,38,38,0.07)",    color: "#dc2626" },
   "Transferencia salida": { bg: "rgba(107,114,128,0.12)",  color: "#6b7280" },
 };
+
+const TIPOS_EGRESO = new Set<string>(["Venta", "Muerte", "Transferencia salida"]);
 
 const CATEGORIAS = ["Terneros", "Novillos", "Vacas", "Vaquillonas", "Toros"] as const;
 
@@ -137,12 +140,26 @@ interface ModalProps {
   establecimientoId: string;
   onClose: () => void;
   onCreated: () => void;
+  editData?: Animal;
 }
 
-function NuevoAnimalModal({ establecimientoId, onClose, onCreated }: ModalProps) {
-  const [form, setForm] = useState(FORM_EMPTY);
+function NuevoAnimalModal({ establecimientoId, onClose, onCreated, editData }: ModalProps) {
+  const [form, setForm] = useState(
+    editData
+      ? {
+          categoria: editData.categoria as typeof CATEGORIAS[number],
+          potrero: editData.potrero,
+          cantidad: String(editData.cantidad),
+          fecha: editData.fecha,
+          responsable: editData.responsable,
+          tipo: (editData.tipo ?? "Ingreso") as TipoMovimiento,
+          monto_venta: "",
+        }
+      : FORM_EMPTY
+  );
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const { dragStyle, onDragStart } = useDraggable();
 
   function set(field: keyof typeof FORM_EMPTY) {
     return (value: string) => setForm((f) => ({ ...f, [field]: value }));
@@ -161,7 +178,7 @@ function NuevoAnimalModal({ establecimientoId, onClose, onCreated }: ModalProps)
     }
 
     let montoVenta: number | null = null;
-    if (form.tipo === "Venta") {
+    if (form.tipo === "Venta" && !editData) {
       montoVenta = parseFloat(form.monto_venta);
       if (isNaN(montoVenta) || montoVenta <= 0) {
         setError("Ingresá el monto total de la venta.");
@@ -172,6 +189,30 @@ function NuevoAnimalModal({ establecimientoId, onClose, onCreated }: ModalProps)
     setLoading(true);
     setError(null);
     const supabase = createClient();
+
+    if (editData) {
+      const { error: dbError } = await supabase
+        .from("animales")
+        .update({
+          categoria: form.categoria,
+          potrero: form.potrero.trim(),
+          cantidad: cant,
+          fecha: form.fecha,
+          responsable: form.responsable.trim(),
+          tipo: form.tipo,
+        })
+        .eq("id", editData.id);
+
+      if (dbError) {
+        setError(dbError.message);
+        setLoading(false);
+        return;
+      }
+      onCreated();
+      onClose();
+      return;
+    }
+
     const { data: { user } } = await supabase.auth.getUser();
 
     const { error: dbError } = await supabase.from("animales").insert({
@@ -211,17 +252,22 @@ function NuevoAnimalModal({ establecimientoId, onClose, onCreated }: ModalProps)
     <div className="fixed inset-0 z-50 flex items-center justify-center px-4" style={{ backgroundColor: "rgba(26,26,24,0.45)" }} onClick={onClose}>
       <div
         className="w-full max-w-md rounded-2xl p-6 flex flex-col gap-5"
-        style={{ backgroundColor: "#ffffff", boxShadow: "0 20px 60px rgba(26,26,24,0.18)", border: "1px solid rgba(212,197,169,0.5)" }}
+        style={{ backgroundColor: "#ffffff", boxShadow: "0 20px 60px rgba(26,26,24,0.18)", border: "1px solid rgba(212,197,169,0.5)", ...dragStyle }}
         onClick={(e) => e.stopPropagation()}
       >
-        {/* Header */}
-        <div className="flex items-center justify-between">
+        {/* Header — drag handle */}
+        <div className="flex items-center justify-between" onMouseDown={onDragStart} style={{ cursor: "grab" }}>
           <h2 className="text-lg font-semibold" style={{ color: "var(--color-tierra)", fontFamily: "var(--font-playfair), Georgia, serif" }}>
-            Nuevo Dato de Hacienda
+            {editData ? "Editar Registro" : "Nuevo Dato de Hacienda"}
           </h2>
-          <button onClick={onClose} className="w-7 h-7 rounded-lg flex items-center justify-center" style={{ color: "rgba(26,26,24,0.4)" }}
+          <button
+            onClick={onClose}
+            onMouseDown={(e) => e.stopPropagation()}
+            className="w-7 h-7 rounded-lg flex items-center justify-center"
+            style={{ color: "rgba(26,26,24,0.4)" }}
             onMouseEnter={(e) => { (e.currentTarget as HTMLButtonElement).style.backgroundColor = "rgba(212,197,169,0.3)"; }}
-            onMouseLeave={(e) => { (e.currentTarget as HTMLButtonElement).style.backgroundColor = "transparent"; }}>
+            onMouseLeave={(e) => { (e.currentTarget as HTMLButtonElement).style.backgroundColor = "transparent"; }}
+          >
             <X size={16} />
           </button>
         </div>
@@ -325,8 +371,8 @@ function NuevoAnimalModal({ establecimientoId, onClose, onCreated }: ModalProps)
             />
           </div>
 
-          {/* Monto venta — solo si tipo = Venta */}
-          {form.tipo === "Venta" && (
+          {/* Monto venta — solo si tipo = Venta y no es edición */}
+          {form.tipo === "Venta" && !editData && (
             <div>
               <label className="form-label">Monto total de la venta (ARS)</label>
               <input
@@ -381,6 +427,15 @@ export default function HaciendaPage() {
   const [showImportModal, setShowImportModal] = useState(false);
   const [establecimientoNombre, setEstablecimientoNombre] = useState("");
   const [profilesMap, setProfilesMap] = useState<Record<string, string>>({});
+  const [editAnimal, setEditAnimal] = useState<Animal | null>(null);
+  const [openMenuId, setOpenMenuId] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!openMenuId) return;
+    function close() { setOpenMenuId(null); }
+    document.addEventListener("click", close);
+    return () => document.removeEventListener("click", close);
+  }, [openMenuId]);
 
   const fetchData = useCallback(async () => {
     const supabase = createClient();
@@ -435,10 +490,14 @@ export default function HaciendaPage() {
       )
     : baseData;
 
-  const totalCabezas = filtered.reduce((s, r) => s + r.cantidad, 0);
+  const totalCabezas = filtered.reduce(
+    (s, r) => s + (TIPOS_EGRESO.has(r.tipo ?? "Ingreso") ? -r.cantidad : r.cantidad),
+    0
+  );
 
   function exportar() {
     const rows = filtered.map((a) => ({
+      "Tipo": a.tipo ?? "Ingreso",
       "Categoría": a.categoria,
       "Potrero": a.potrero,
       "Cantidad": a.cantidad,
@@ -469,11 +528,12 @@ export default function HaciendaPage() {
 
   return (
     <>
-      {showModal && establecimientoId && (
+      {(showModal || editAnimal !== null) && establecimientoId && (
         <NuevoAnimalModal
           establecimientoId={establecimientoId}
-          onClose={() => setShowModal(false)}
+          onClose={() => { setShowModal(false); setEditAnimal(null); }}
           onCreated={fetchData}
+          editData={editAnimal ?? undefined}
         />
       )}
       {showImportModal && (
@@ -585,40 +645,70 @@ export default function HaciendaPage() {
                   </tr>
                 </thead>
                 <tbody>
-                  {filtered.map((row, idx) => (
-                    <tr key={row.id}
-                      style={{ borderBottom: idx < filtered.length - 1 ? "1px solid rgba(212,197,169,0.25)" : "none" }}
-                      onMouseEnter={(e) => { (e.currentTarget as HTMLTableRowElement).style.backgroundColor = "rgba(240,237,230,0.4)"; }}
-                      onMouseLeave={(e) => { (e.currentTarget as HTMLTableRowElement).style.backgroundColor = "transparent"; }}
-                    >
-                      <td className="px-6 py-4"><TipoChip tipo={row.tipo ?? "Ingreso"} /></td>
-                      <td className="px-6 py-4"><CategoriaChip categoria={row.categoria} /></td>
-                      <td className="px-6 py-4 text-sm font-medium" style={{ color: "var(--color-tierra)" }}>{row.potrero}</td>
-                      <td className="px-6 py-4">
-                        <span className="text-sm font-bold tabular-nums" style={{ color: "var(--color-campo)" }}>{row.cantidad.toLocaleString("es-AR")}</span>
-                        <span className="text-xs ml-1" style={{ color: "rgba(26,26,24,0.35)" }}>cab.</span>
-                      </td>
-                      <td className="px-6 py-4 text-sm tabular-nums" style={{ color: "rgba(26,26,24,0.55)" }}>{fmtFecha(row.fecha)}</td>
-                      <td className="px-6 py-4">
-                        <div className="flex items-center gap-2">
-                          <div className="w-6 h-6 rounded-full flex items-center justify-center text-white text-[10px] font-semibold shrink-0" style={{ backgroundColor: "var(--color-cuero)" }}>
-                            {row.responsable.split(" ").map((n) => n[0]).join("").slice(0, 2)}
+                  {filtered.map((row, idx) => {
+                    const isEgreso = TIPOS_EGRESO.has(row.tipo ?? "Ingreso");
+                    return (
+                      <tr key={row.id}
+                        style={{ borderBottom: idx < filtered.length - 1 ? "1px solid rgba(212,197,169,0.25)" : "none" }}
+                        onMouseEnter={(e) => { (e.currentTarget as HTMLTableRowElement).style.backgroundColor = "rgba(240,237,230,0.4)"; }}
+                        onMouseLeave={(e) => { (e.currentTarget as HTMLTableRowElement).style.backgroundColor = "transparent"; }}
+                      >
+                        <td className="px-6 py-4"><TipoChip tipo={row.tipo ?? "Ingreso"} /></td>
+                        <td className="px-6 py-4"><CategoriaChip categoria={row.categoria} /></td>
+                        <td className="px-6 py-4 text-sm font-medium" style={{ color: "var(--color-tierra)" }}>{row.potrero}</td>
+                        <td className="px-6 py-4">
+                          <span className="text-sm font-bold tabular-nums" style={{ color: isEgreso ? "#dc2626" : "var(--color-campo)" }}>
+                            {isEgreso ? "-" : "+"}{row.cantidad.toLocaleString("es-AR")}
+                          </span>
+                          <span className="text-xs ml-1" style={{ color: "rgba(26,26,24,0.35)" }}>cab.</span>
+                        </td>
+                        <td className="px-6 py-4 text-sm tabular-nums" style={{ color: "rgba(26,26,24,0.55)" }}>{fmtFecha(row.fecha)}</td>
+                        <td className="px-6 py-4">
+                          <div className="flex items-center gap-2">
+                            <div className="w-6 h-6 rounded-full flex items-center justify-center text-white text-[10px] font-semibold shrink-0" style={{ backgroundColor: "var(--color-cuero)" }}>
+                              {row.responsable.split(" ").map((n) => n[0]).join("").slice(0, 2)}
+                            </div>
+                            <span className="text-sm" style={{ color: "var(--color-tierra)" }}>{row.responsable}</span>
                           </div>
-                          <span className="text-sm" style={{ color: "var(--color-tierra)" }}>{row.responsable}</span>
-                        </div>
-                      </td>
-                      <td className="px-6 py-4 text-sm" style={{ color: "rgba(26,26,24,0.5)" }}>
-                        {row.created_by ? (profilesMap[row.created_by] ?? "—") : "—"}
-                      </td>
-                      <td className="px-4 py-4 text-right">
-                        <button className="w-7 h-7 rounded-lg flex items-center justify-center ml-auto" style={{ color: "rgba(26,26,24,0.3)" }}
-                          onMouseEnter={(e) => { (e.currentTarget as HTMLButtonElement).style.backgroundColor = "rgba(212,197,169,0.3)"; (e.currentTarget as HTMLButtonElement).style.color = "var(--color-tierra)"; }}
-                          onMouseLeave={(e) => { (e.currentTarget as HTMLButtonElement).style.backgroundColor = "transparent"; (e.currentTarget as HTMLButtonElement).style.color = "rgba(26,26,24,0.3)"; }}>
-                          <MoreHorizontal size={16} />
-                        </button>
-                      </td>
-                    </tr>
-                  ))}
+                        </td>
+                        <td className="px-6 py-4 text-sm" style={{ color: "rgba(26,26,24,0.5)" }}>
+                          {row.created_by ? (profilesMap[row.created_by] ?? "—") : "—"}
+                        </td>
+                        <td className="px-4 py-4 text-right">
+                          <div className="relative inline-block">
+                            <button
+                              onClick={(e) => { e.stopPropagation(); setOpenMenuId(openMenuId === row.id ? null : row.id); }}
+                              className="w-7 h-7 rounded-lg flex items-center justify-center ml-auto"
+                              style={{
+                                color: openMenuId === row.id ? "var(--color-tierra)" : "rgba(26,26,24,0.3)",
+                                backgroundColor: openMenuId === row.id ? "rgba(212,197,169,0.3)" : "transparent",
+                              }}
+                              onMouseEnter={(e) => { if (openMenuId !== row.id) { (e.currentTarget as HTMLButtonElement).style.backgroundColor = "rgba(212,197,169,0.3)"; (e.currentTarget as HTMLButtonElement).style.color = "var(--color-tierra)"; } }}
+                              onMouseLeave={(e) => { if (openMenuId !== row.id) { (e.currentTarget as HTMLButtonElement).style.backgroundColor = "transparent"; (e.currentTarget as HTMLButtonElement).style.color = "rgba(26,26,24,0.3)"; } }}
+                            >
+                              <MoreHorizontal size={16} />
+                            </button>
+                            {openMenuId === row.id && (
+                              <div
+                                className="absolute right-0 top-full mt-1 z-20 rounded-xl overflow-hidden py-1"
+                                style={{ backgroundColor: "#ffffff", boxShadow: "0 4px 20px rgba(26,26,24,0.14)", border: "1px solid rgba(212,197,169,0.5)", minWidth: 120 }}
+                              >
+                                <button
+                                  onClick={(e) => { e.stopPropagation(); setEditAnimal(row); setOpenMenuId(null); }}
+                                  className="w-full px-4 py-2 text-sm text-left"
+                                  style={{ color: "var(--color-tierra)" }}
+                                  onMouseEnter={(e) => { (e.currentTarget as HTMLButtonElement).style.backgroundColor = "rgba(212,197,169,0.2)"; }}
+                                  onMouseLeave={(e) => { (e.currentTarget as HTMLButtonElement).style.backgroundColor = "transparent"; }}
+                                >
+                                  Editar
+                                </button>
+                              </div>
+                            )}
+                          </div>
+                        </td>
+                      </tr>
+                    );
+                  })}
                 </tbody>
               </table>
               </div>
@@ -627,7 +717,7 @@ export default function HaciendaPage() {
 
           {!loading && filtered.length > 0 && (
             <p className="text-xs" style={{ color: "rgba(26,26,24,0.35)" }}>
-              {filtered.length} registro{filtered.length !== 1 ? "s" : ""} · {totalCabezas.toLocaleString("es-AR")} cabezas totales
+              {filtered.length} registro{filtered.length !== 1 ? "s" : ""} · {totalCabezas.toLocaleString("es-AR")} cabezas neto
             </p>
           )}
         </div>

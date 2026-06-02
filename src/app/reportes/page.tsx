@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
-import { Loader2, AlertCircle, TrendingUp, TrendingDown, DollarSign, CheckCircle2, Clock, AlertTriangle } from "lucide-react";
+import { Loader2, AlertCircle, TrendingUp, TrendingDown, DollarSign, CheckCircle2, Clock, AlertTriangle, Beef } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer,
@@ -15,6 +15,7 @@ interface Animal {
   potrero: string;
   cantidad: number;
   fecha: string;
+  tipo: string | null;
 }
 
 interface Gasto {
@@ -184,114 +185,139 @@ type TabTareasProps = { tareas: Tarea[]; loading: boolean };
 
 // ── Hacienda Tab ─────────────────────────────────────────────────────────────
 
+const TIPOS_EGRESO_H = new Set<string>(["Venta", "Muerte", "Transferencia salida"]);
+
 function TabHacienda({ animales, loading }: TabHaciendaProps) {
   if (loading) return <LoadingState />;
+  if (animales.length === 0) return <EmptyState label="Sin registros de hacienda" />;
 
   const months = last6Months();
 
-  // Cabezas por mes
+  // Net totals
+  const totalNeto = animales.reduce(
+    (s, a) => s + (TIPOS_EGRESO_H.has(a.tipo ?? "Ingreso") ? -a.cantidad : a.cantidad),
+    0
+  );
+  const totalIngrH = animales.filter((a) => !TIPOS_EGRESO_H.has(a.tipo ?? "Ingreso")).reduce((s, a) => s + a.cantidad, 0);
+  const totalEgrH = animales.filter((a) => TIPOS_EGRESO_H.has(a.tipo ?? "Ingreso")).reduce((s, a) => s + a.cantidad, 0);
+
+  // Ingresos vs egresos por mes
   const cabezasPorMes = months.map(({ key, label }) => {
-    const total = animales
-      .filter((a) => a.fecha.startsWith(key))
+    const ing = animales
+      .filter((a) => a.fecha.startsWith(key) && !TIPOS_EGRESO_H.has(a.tipo ?? "Ingreso"))
       .reduce((s, a) => s + a.cantidad, 0);
-    return { mes: label, Cabezas: total };
+    const egr = animales
+      .filter((a) => a.fecha.startsWith(key) && TIPOS_EGRESO_H.has(a.tipo ?? "Ingreso"))
+      .reduce((s, a) => s + a.cantidad, 0);
+    return { mes: label, Ingresos: ing, Egresos: egr };
   });
 
-  // Distribución por categoría
+  // Distribución por categoría (neto)
   const catMap: Record<string, number> = {};
   animales.forEach((a) => {
-    catMap[a.categoria] = (catMap[a.categoria] ?? 0) + a.cantidad;
+    const delta = TIPOS_EGRESO_H.has(a.tipo ?? "Ingreso") ? -a.cantidad : a.cantidad;
+    catMap[a.categoria] = (catMap[a.categoria] ?? 0) + delta;
   });
   const catData = Object.entries(catMap)
+    .filter(([, v]) => v > 0)
     .map(([name, value]) => ({ name, value }))
     .sort((a, b) => b.value - a.value);
 
-  // Top 5 potreros
+  // Top 5 potreros (neto)
   const potreroMap: Record<string, number> = {};
   animales.forEach((a) => {
-    potreroMap[a.potrero] = (potreroMap[a.potrero] ?? 0) + a.cantidad;
+    const delta = TIPOS_EGRESO_H.has(a.tipo ?? "Ingreso") ? -a.cantidad : a.cantidad;
+    potreroMap[a.potrero] = (potreroMap[a.potrero] ?? 0) + delta;
   });
   const top5 = Object.entries(potreroMap)
+    .filter(([, v]) => v > 0)
     .sort((a, b) => b[1] - a[1])
     .slice(0, 5);
   const maxTop = top5[0]?.[1] ?? 1;
 
-  if (animales.length === 0) return <EmptyState label="Sin registros de hacienda" />;
-
   return (
-    <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
-      <Section title="Evolución de cabezas — últimos 6 meses">
-        <ResponsiveContainer width="100%" height={220}>
-          <BarChart data={cabezasPorMes} barSize={28}>
-            <CartesianGrid strokeDasharray="3 3" stroke="rgba(212,197,169,0.3)" vertical={false} />
-            <XAxis dataKey="mes" tick={{ fontSize: 12, fill: "rgba(26,26,24,0.5)" }} axisLine={false} tickLine={false} />
-            <YAxis tick={{ fontSize: 12, fill: "rgba(26,26,24,0.5)" }} axisLine={false} tickLine={false} />
-            <Tooltip content={<CustomTooltip />} />
-            <Bar dataKey="Cabezas" fill={CAMPO} radius={[5, 5, 0, 0]} />
-          </BarChart>
-        </ResponsiveContainer>
-      </Section>
+    <div className="space-y-5">
+      {/* Métricas */}
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+        <MetricCard label="Cabezas neto" value={totalNeto.toLocaleString("es-AR")} sub="Stock actual estimado" icon={Beef} color={CAMPO} />
+        <MetricCard label="Total ingresos" value={totalIngrH.toLocaleString("es-AR")} sub="Compras y nacimientos" icon={TrendingUp} color="#16a34a" />
+        <MetricCard label="Total egresos" value={totalEgrH.toLocaleString("es-AR")} sub="Ventas, muertes y transferencias" icon={TrendingDown} color="#dc2626" />
+      </div>
 
-      <Section title="Distribución por categoría">
-        {catData.length === 0 ? (
-          <EmptyState label="Sin datos" />
-        ) : (
-          <div className="flex items-center gap-4">
-            <ResponsiveContainer width="55%" height={220}>
-              <PieChart>
-                <Pie data={catData} cx="50%" cy="50%" innerRadius={55} outerRadius={90} paddingAngle={3} dataKey="value">
-                  {catData.map((entry, idx) => (
-                    <Cell key={entry.name} fill={pickColor(entry.name, idx)} />
-                  ))}
-                </Pie>
-                <Tooltip content={<PieTooltip />} />
-              </PieChart>
-            </ResponsiveContainer>
-            <div className="flex-1 space-y-2">
-              {catData.map((entry, idx) => (
-                <div key={entry.name} className="flex items-center gap-2">
-                  <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ backgroundColor: pickColor(entry.name, idx) }} />
-                  <span className="text-xs flex-1 truncate" style={{ color: "rgba(26,26,24,0.6)" }}>{entry.name}</span>
-                  <span className="text-xs font-semibold" style={{ color: "#1a1a18" }}>{entry.value.toLocaleString("es-AR")}</span>
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
-      </Section>
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
+        <Section title="Ingresos vs Egresos — últimos 6 meses">
+          <ResponsiveContainer width="100%" height={220}>
+            <BarChart data={cabezasPorMes} barSize={20} barGap={4}>
+              <CartesianGrid strokeDasharray="3 3" stroke="rgba(212,197,169,0.3)" vertical={false} />
+              <XAxis dataKey="mes" tick={{ fontSize: 12, fill: "rgba(26,26,24,0.5)" }} axisLine={false} tickLine={false} />
+              <YAxis tick={{ fontSize: 12, fill: "rgba(26,26,24,0.5)" }} axisLine={false} tickLine={false} />
+              <Tooltip content={<CustomTooltip />} />
+              <Legend wrapperStyle={{ fontSize: 12, paddingTop: 8 }} />
+              <Bar dataKey="Ingresos" fill="#16a34a" radius={[4, 4, 0, 0]} />
+              <Bar dataKey="Egresos" fill="#dc2626" radius={[4, 4, 0, 0]} />
+            </BarChart>
+          </ResponsiveContainer>
+        </Section>
 
-      <div className="lg:col-span-2">
-        <Section title="Top 5 potreros por cantidad de animales">
-          {top5.length === 0 ? (
-            <EmptyState label="Sin datos" />
+        <Section title="Distribución por categoría (neto)">
+          {catData.length === 0 ? (
+            <EmptyState label="Sin datos positivos" />
           ) : (
-            <div className="space-y-3">
-              {top5.map(([potrero, total], idx) => (
-                <div key={potrero} className="flex items-center gap-3">
-                  <span
-                    className="w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold shrink-0"
-                    style={{ backgroundColor: idx === 0 ? `${CAMPO}22` : "rgba(212,197,169,0.25)", color: idx === 0 ? CAMPO : "rgba(26,26,24,0.5)" }}
-                  >
-                    {idx + 1}
-                  </span>
-                  <span className="text-sm font-medium flex-1 truncate" style={{ color: "#1a1a18" }}>{potrero}</span>
-                  <div className="flex-1 max-w-[180px]">
-                    <div className="h-2 rounded-full overflow-hidden" style={{ backgroundColor: "rgba(212,197,169,0.25)" }}>
-                      <div
-                        className="h-full rounded-full transition-all duration-700"
-                        style={{ width: `${(total / maxTop) * 100}%`, backgroundColor: CAMPO, opacity: 1 - idx * 0.12 }}
-                      />
-                    </div>
+            <div className="flex items-center gap-4">
+              <ResponsiveContainer width="55%" height={220}>
+                <PieChart>
+                  <Pie data={catData} cx="50%" cy="50%" innerRadius={55} outerRadius={90} paddingAngle={3} dataKey="value">
+                    {catData.map((entry, idx) => (
+                      <Cell key={entry.name} fill={pickColor(entry.name, idx)} />
+                    ))}
+                  </Pie>
+                  <Tooltip content={<PieTooltip />} />
+                </PieChart>
+              </ResponsiveContainer>
+              <div className="flex-1 space-y-2">
+                {catData.map((entry, idx) => (
+                  <div key={entry.name} className="flex items-center gap-2">
+                    <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ backgroundColor: pickColor(entry.name, idx) }} />
+                    <span className="text-xs flex-1 truncate" style={{ color: "rgba(26,26,24,0.6)" }}>{entry.name}</span>
+                    <span className="text-xs font-semibold" style={{ color: "#1a1a18" }}>{entry.value.toLocaleString("es-AR")}</span>
                   </div>
-                  <span className="text-sm font-semibold w-16 text-right" style={{ color: "#1a1a18" }}>
-                    {total.toLocaleString("es-AR")}
-                  </span>
-                </div>
-              ))}
+                ))}
+              </div>
             </div>
           )}
         </Section>
       </div>
+
+      <Section title="Top 5 potreros por stock neto">
+        {top5.length === 0 ? (
+          <EmptyState label="Sin datos" />
+        ) : (
+          <div className="space-y-3">
+            {top5.map(([potrero, total], idx) => (
+              <div key={potrero} className="flex items-center gap-3">
+                <span
+                  className="w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold shrink-0"
+                  style={{ backgroundColor: idx === 0 ? `${CAMPO}22` : "rgba(212,197,169,0.25)", color: idx === 0 ? CAMPO : "rgba(26,26,24,0.5)" }}
+                >
+                  {idx + 1}
+                </span>
+                <span className="text-sm font-medium flex-1 truncate" style={{ color: "#1a1a18" }}>{potrero}</span>
+                <div className="flex-1 max-w-[180px]">
+                  <div className="h-2 rounded-full overflow-hidden" style={{ backgroundColor: "rgba(212,197,169,0.25)" }}>
+                    <div
+                      className="h-full rounded-full transition-all duration-700"
+                      style={{ width: `${(total / maxTop) * 100}%`, backgroundColor: CAMPO, opacity: 1 - idx * 0.12 }}
+                    />
+                  </div>
+                </div>
+                <span className="text-sm font-semibold w-16 text-right" style={{ color: "#1a1a18" }}>
+                  {total.toLocaleString("es-AR")}
+                </span>
+              </div>
+            ))}
+          </div>
+        )}
+      </Section>
     </div>
   );
 }
@@ -645,7 +671,7 @@ export default function ReportesPage() {
     const supabase = createClient();
     const { data } = await supabase
       .from("animales")
-      .select("categoria, potrero, cantidad, fecha")
+      .select("categoria, potrero, cantidad, fecha, tipo")
       .eq("establecimiento_id", estId)
       .order("fecha", { ascending: false });
     setAnimales(data ?? []);

@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback } from "react";
 import { TrendingUp, TrendingDown, DollarSign, Plus, X, Loader2, AlertCircle, Download } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
+import { useDraggable } from "@/lib/useDraggable";
 import { exportToExcel, todayISO, slugifyName } from "@/lib/exportExcel";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -96,6 +97,7 @@ function NuevoGastoModal({ establecimientoId, onClose, onCreated }: ModalProps) 
   const [form, setForm] = useState(FORM_EMPTY);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const { dragStyle, onDragStart } = useDraggable();
 
   function set(field: keyof typeof FORM_EMPTY) {
     return (value: string) => setForm((f) => ({ ...f, [field]: value }));
@@ -130,11 +132,11 @@ function NuevoGastoModal({ establecimientoId, onClose, onCreated }: ModalProps) 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center px-4" style={{ backgroundColor: "rgba(26,26,24,0.45)" }} onClick={onClose}>
       <div className="w-full max-w-md rounded-2xl p-6 flex flex-col gap-5"
-        style={{ backgroundColor: "#ffffff", boxShadow: "0 20px 60px rgba(26,26,24,0.18)", border: "1px solid rgba(212,197,169,0.5)" }}
+        style={{ backgroundColor: "#ffffff", boxShadow: "0 20px 60px rgba(26,26,24,0.18)", border: "1px solid rgba(212,197,169,0.5)", ...dragStyle }}
         onClick={(e) => e.stopPropagation()}>
-        <div className="flex items-center justify-between">
+        <div className="flex items-center justify-between" onMouseDown={onDragStart} style={{ cursor: "grab" }}>
           <h2 className="text-lg font-semibold" style={{ color: "var(--color-tierra)", fontFamily: "var(--font-playfair), Georgia, serif" }}>Nuevo Movimiento</h2>
-          <button onClick={onClose} className="w-7 h-7 rounded-lg flex items-center justify-center" style={{ color: "rgba(26,26,24,0.4)" }}
+          <button onClick={onClose} onMouseDown={(e) => e.stopPropagation()} className="w-7 h-7 rounded-lg flex items-center justify-center" style={{ color: "rgba(26,26,24,0.4)" }}
             onMouseEnter={(e) => { (e.currentTarget as HTMLButtonElement).style.backgroundColor = "rgba(212,197,169,0.3)"; }}
             onMouseLeave={(e) => { (e.currentTarget as HTMLButtonElement).style.backgroundColor = "transparent"; }}>
             <X size={16} />
