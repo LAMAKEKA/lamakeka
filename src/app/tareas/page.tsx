@@ -89,8 +89,8 @@ function NuevaTareaModal({ establecimientoId, onClose, onCreated }: ModalProps) 
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center px-4" style={{ backgroundColor: "rgba(26,26,24,0.45)" }} onClick={onClose}>
-      <div className="w-full max-w-md rounded-2xl p-6 flex flex-col gap-5"
+    <div className="fixed inset-0 z-50 flex items-end md:items-center md:px-4" style={{ backgroundColor: "rgba(26,26,24,0.45)" }} onClick={onClose}>
+      <div className="w-full md:max-w-md rounded-t-2xl md:rounded-2xl p-6 flex flex-col gap-5 max-h-[90vh] overflow-y-auto"
         style={{ backgroundColor: "#ffffff", boxShadow: "0 20px 60px rgba(26,26,24,0.18)", border: "1px solid rgba(212,197,169,0.5)", ...dragStyle }}
         onClick={(e) => e.stopPropagation()}>
         <div className="flex items-center justify-between" onMouseDown={onDragStart} style={{ cursor: "grab" }}>
@@ -215,7 +215,7 @@ function TareaRow({ tarea, onToggle, creatorName, onAudit }: { tarea: Tarea; onT
         </div>
         <span className="text-sm" style={{ color: "var(--color-tierra)" }}>{tarea.responsable}</span>
       </div>
-      <div className="shrink-0" style={{ minWidth: 140 }}>
+      <div className="hidden md:block shrink-0" style={{ minWidth: 140 }}>
         <span className="text-xs" style={{ color: "rgba(26,26,24,0.45)" }}>{creatorName}</span>
       </div>
       <button onClick={() => onAudit(tarea.id)}
@@ -318,15 +318,15 @@ export default function TareasPage() {
               <p className="text-xs font-medium tracking-widest uppercase mb-1" style={{ color: "rgba(26,26,24,0.38)" }}>Gestión</p>
               <h1 className="text-2xl font-bold leading-tight" style={{ color: "var(--color-tierra)", fontFamily: "var(--font-playfair), Georgia, serif" }}>Tareas</h1>
             </div>
-            <div className="flex items-center gap-3">
+            <div className="flex items-center gap-2">
               {!loading && tareas.length > 0 && (
-                <button onClick={exportar} className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-semibold"
+                <button onClick={exportar} className="hidden md:flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-semibold"
                   style={{ border: "1.5px solid rgba(212,197,169,0.8)", color: "var(--color-tierra)", backgroundColor: "transparent" }}>
                   <Download size={15} strokeWidth={2} />Exportar
                 </button>
               )}
-              <button onClick={() => setShowModal(true)} className="flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-semibold text-white hover:opacity-90" style={{ backgroundColor: "var(--color-campo)" }}>
-                <Plus size={16} strokeWidth={2.5} />Nueva Tarea
+              <button onClick={() => setShowModal(true)} className="flex items-center gap-2 px-4 md:px-5 py-2.5 rounded-xl text-sm font-semibold text-white hover:opacity-90" style={{ backgroundColor: "var(--color-campo)" }}>
+                <Plus size={16} strokeWidth={2.5} /><span className="hidden sm:inline">Nueva Tarea</span><span className="sm:hidden">Nueva</span>
               </button>
             </div>
           </div>
@@ -391,7 +391,7 @@ export default function TareasPage() {
                       <span style={{ minWidth: 60, textAlign: "right" }}>Prioridad</span>
                       <span style={{ minWidth: 90, textAlign: "right" }}>Fecha límite</span>
                       <span style={{ minWidth: 148 }}>Responsable</span>
-                      <span style={{ minWidth: 140 }}>Registrado por</span>
+                      <span className="hidden md:inline" style={{ minWidth: 140 }}>Registrado por</span>
                     </div>
                   </div>
                   <div className="divide-y" style={{ borderColor: "rgba(212,197,169,0.25)" }}>
@@ -413,7 +413,7 @@ export default function TareasPage() {
                       <span style={{ minWidth: 60, textAlign: "right" }}>Prioridad</span>
                       <span style={{ minWidth: 90, textAlign: "right" }}>Fecha límite</span>
                       <span style={{ minWidth: 148 }}>Responsable</span>
-                      <span style={{ minWidth: 140 }}>Registrado por</span>
+                      <span className="hidden md:inline" style={{ minWidth: 140 }}>Registrado por</span>
                     </div>
                   </div>
                   <div className="divide-y" style={{ borderColor: "rgba(212,197,169,0.25)" }}>

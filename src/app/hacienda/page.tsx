@@ -248,8 +248,8 @@ function NuevoAnimalModal({ establecimientoId, onClose, onCreated, editData }: A
   const onBlur = (e: React.FocusEvent<HTMLInputElement | HTMLSelectElement>) => { e.target.style.borderColor = "rgba(212,197,169,0.8)"; e.target.style.boxShadow = "none"; };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center px-4" style={{ backgroundColor: "rgba(26,26,24,0.45)" }} onClick={onClose}>
-      <div className="w-full max-w-md rounded-2xl p-6 flex flex-col gap-5"
+    <div className="fixed inset-0 z-50 flex items-end md:items-center md:px-4" style={{ backgroundColor: "rgba(26,26,24,0.45)" }} onClick={onClose}>
+      <div className="w-full md:max-w-md rounded-t-2xl md:rounded-2xl p-6 flex flex-col gap-5 max-h-[90vh] overflow-y-auto"
         style={{ backgroundColor: "#ffffff", boxShadow: "0 20px 60px rgba(26,26,24,0.18)", border: "1px solid rgba(212,197,169,0.5)", ...dragStyle }}
         onClick={(e) => e.stopPropagation()}>
         <div className="flex items-center justify-between" onMouseDown={onDragStart} style={{ cursor: "grab" }}>
@@ -398,8 +398,8 @@ function NuevoDiagnosticoModal({ establecimientoId, potreros, onClose, onCreated
   const onBlur = (e: React.FocusEvent<HTMLInputElement | HTMLSelectElement>) => { e.target.style.borderColor = "rgba(212,197,169,0.8)"; e.target.style.boxShadow = "none"; };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center px-4" style={{ backgroundColor: "rgba(26,26,24,0.45)" }} onClick={onClose}>
-      <div className="w-full max-w-md rounded-2xl p-6 flex flex-col gap-5"
+    <div className="fixed inset-0 z-50 flex items-end md:items-center md:px-4" style={{ backgroundColor: "rgba(26,26,24,0.45)" }} onClick={onClose}>
+      <div className="w-full md:max-w-md rounded-t-2xl md:rounded-2xl p-6 flex flex-col gap-5 max-h-[90vh] overflow-y-auto"
         style={{ backgroundColor: "#ffffff", boxShadow: "0 20px 60px rgba(26,26,24,0.18)", border: "1px solid rgba(212,197,169,0.5)", ...dragStyle }}
         onClick={(e) => e.stopPropagation()}>
         <div className="flex items-center justify-between" onMouseDown={onDragStart} style={{ cursor: "grab" }}>
@@ -668,12 +668,12 @@ export default function HaciendaPage() {
             <div className="flex items-center gap-2">
               {seccion === "animales" ? (
                 <>
-                  {!loading && <button onClick={() => setShowImportModal(true)} className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-semibold" style={{ border: "1.5px solid rgba(212,197,169,0.8)", color: "var(--color-tierra)", backgroundColor: "transparent" }}><Upload size={15} strokeWidth={2} />Importar</button>}
-                  {!loading && animales.length > 0 && <button onClick={exportar} className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-semibold" style={{ border: "1.5px solid rgba(212,197,169,0.8)", color: "var(--color-tierra)", backgroundColor: "transparent" }}><Download size={15} strokeWidth={2} />Exportar</button>}
-                  <button onClick={() => setShowModal(true)} className="flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-semibold text-white hover:opacity-90" style={{ backgroundColor: "var(--color-campo)" }}><Plus size={16} strokeWidth={2.5} />Nuevo Dato</button>
+                  {!loading && <button onClick={() => setShowImportModal(true)} className="hidden md:flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-semibold" style={{ border: "1.5px solid rgba(212,197,169,0.8)", color: "var(--color-tierra)", backgroundColor: "transparent" }}><Upload size={15} strokeWidth={2} />Importar</button>}
+                  {!loading && animales.length > 0 && <button onClick={exportar} className="hidden md:flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-semibold" style={{ border: "1.5px solid rgba(212,197,169,0.8)", color: "var(--color-tierra)", backgroundColor: "transparent" }}><Download size={15} strokeWidth={2} />Exportar</button>}
+                  <button onClick={() => setShowModal(true)} className="flex items-center gap-2 px-4 md:px-5 py-2.5 rounded-xl text-sm font-semibold text-white hover:opacity-90" style={{ backgroundColor: "var(--color-campo)" }}><Plus size={16} strokeWidth={2.5} /><span className="hidden sm:inline">Nuevo Dato</span><span className="sm:hidden">Nuevo</span></button>
                 </>
               ) : (
-                <button onClick={() => setShowModalPrenez(true)} className="flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-semibold text-white hover:opacity-90" style={{ backgroundColor: "var(--color-campo)" }}><Plus size={16} strokeWidth={2.5} />Nuevo Diagnóstico</button>
+                <button onClick={() => setShowModalPrenez(true)} className="flex items-center gap-2 px-4 md:px-5 py-2.5 rounded-xl text-sm font-semibold text-white hover:opacity-90" style={{ backgroundColor: "var(--color-campo)" }}><Plus size={16} strokeWidth={2.5} /><span className="hidden sm:inline">Nuevo Diagnóstico</span><span className="sm:hidden">Nuevo</span></button>
               )}
             </div>
           </div>
@@ -833,8 +833,17 @@ export default function HaciendaPage() {
                   <table className="w-full">
                     <thead>
                       <tr style={{ borderBottom: "1px solid rgba(212,197,169,0.4)" }}>
-                        {["Tipo", "Categoría", "Potrero", "Cantidad", "Fecha", "Responsable", "Registrado por", ""].map((col) => (
-                          <th key={col} className="px-6 py-3.5 text-left text-xs font-semibold tracking-wider uppercase" style={{ color: "rgba(26,26,24,0.38)", backgroundColor: "rgba(240,237,230,0.5)" }}>{col}</th>
+                        {[
+                          { label: "Tipo", hide: false },
+                          { label: "Categoría", hide: false },
+                          { label: "Potrero", hide: false },
+                          { label: "Cantidad", hide: false },
+                          { label: "Fecha", hide: true },
+                          { label: "Responsable", hide: false },
+                          { label: "Registrado por", hide: true },
+                          { label: "", hide: false },
+                        ].map(({ label, hide }) => (
+                          <th key={label} className={`px-6 py-3.5 text-left text-xs font-semibold tracking-wider uppercase${hide ? " col-mobile-hidden" : ""}`} style={{ color: "rgba(26,26,24,0.38)", backgroundColor: "rgba(240,237,230,0.5)" }}>{label}</th>
                         ))}
                       </tr>
                     </thead>
@@ -853,7 +862,7 @@ export default function HaciendaPage() {
                               <span className="text-sm font-bold tabular-nums" style={{ color: isEgreso ? "#dc2626" : "var(--color-campo)" }}>{isEgreso ? "-" : "+"}{row.cantidad.toLocaleString("es-AR")}</span>
                               <span className="text-xs ml-1" style={{ color: "rgba(26,26,24,0.35)" }}>cab.</span>
                             </td>
-                            <td className="px-6 py-4 text-sm tabular-nums" style={{ color: "rgba(26,26,24,0.55)" }}>{fmtFecha(row.fecha)}</td>
+                            <td className="px-6 py-4 text-sm tabular-nums col-mobile-hidden" style={{ color: "rgba(26,26,24,0.55)" }}>{fmtFecha(row.fecha)}</td>
                             <td className="px-6 py-4">
                               <div className="flex items-center gap-2">
                                 <div className="w-6 h-6 rounded-full flex items-center justify-center text-white text-[10px] font-semibold shrink-0" style={{ backgroundColor: "var(--color-cuero)" }}>
@@ -862,7 +871,7 @@ export default function HaciendaPage() {
                                 <span className="text-sm" style={{ color: "var(--color-tierra)" }}>{row.responsable}</span>
                               </div>
                             </td>
-                            <td className="px-6 py-4 text-sm" style={{ color: "rgba(26,26,24,0.5)" }}>{row.created_by ? (profilesMap[row.created_by] ?? "—") : "—"}</td>
+                            <td className="px-6 py-4 text-sm col-mobile-hidden" style={{ color: "rgba(26,26,24,0.5)" }}>{row.created_by ? (profilesMap[row.created_by] ?? "—") : "—"}</td>
                             <td className="px-4 py-4 text-right">
                               <div className="relative inline-block">
                                 <button

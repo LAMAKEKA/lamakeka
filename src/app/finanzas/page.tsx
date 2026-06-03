@@ -130,8 +130,8 @@ function NuevoGastoModal({ establecimientoId, onClose, onCreated }: ModalProps) 
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center px-4" style={{ backgroundColor: "rgba(26,26,24,0.45)" }} onClick={onClose}>
-      <div className="w-full max-w-md rounded-2xl p-6 flex flex-col gap-5"
+    <div className="fixed inset-0 z-50 flex items-end md:items-center md:px-4" style={{ backgroundColor: "rgba(26,26,24,0.45)" }} onClick={onClose}>
+      <div className="w-full md:max-w-md rounded-t-2xl md:rounded-2xl p-6 flex flex-col gap-5 max-h-[90vh] overflow-y-auto"
         style={{ backgroundColor: "#ffffff", boxShadow: "0 20px 60px rgba(26,26,24,0.18)", border: "1px solid rgba(212,197,169,0.5)", ...dragStyle }}
         onClick={(e) => e.stopPropagation()}>
         <div className="flex items-center justify-between" onMouseDown={onDragStart} style={{ cursor: "grab" }}>
@@ -348,24 +348,24 @@ export default function FinanzasPage() {
       <div className="flex flex-col min-h-full">
         {/* Header */}
         <div className="px-4 md:px-8 pt-7 pb-5 border-b" style={{ backgroundColor: "#ffffff", borderColor: "rgba(212,197,169,0.5)" }}>
-          <div className="flex items-center justify-between gap-4">
+          <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
             <div>
               <p className="text-xs font-medium tracking-widest uppercase mb-1" style={{ color: "rgba(26,26,24,0.38)" }}>Gestión</p>
               <h1 className="text-2xl font-bold leading-tight" style={{ color: "var(--color-tierra)", fontFamily: "var(--font-playfair), Georgia, serif" }}>Finanzas</h1>
             </div>
-            <div className="flex items-center gap-2">
+            <div className="flex flex-wrap items-center gap-2">
               <input type="date" value={fechaDesde} onChange={(e) => setFechaDesde(e.target.value)}
-                className="px-3 py-2 rounded-xl text-sm outline-none"
+                className="px-3 py-2 rounded-xl text-sm outline-none flex-1 min-w-0"
                 style={{ border: "1.5px solid rgba(212,197,169,0.8)", backgroundColor: "var(--color-pampa)", color: "var(--color-tierra)" }} />
-              <span className="text-sm" style={{ color: "rgba(26,26,24,0.35)" }}>—</span>
+              <span className="text-sm shrink-0" style={{ color: "rgba(26,26,24,0.35)" }}>—</span>
               <input type="date" value={fechaHasta} onChange={(e) => setFechaHasta(e.target.value)}
-                className="px-3 py-2 rounded-xl text-sm outline-none"
+                className="px-3 py-2 rounded-xl text-sm outline-none flex-1 min-w-0"
                 style={{ border: "1.5px solid rgba(212,197,169,0.8)", backgroundColor: "var(--color-pampa)", color: "var(--color-tierra)" }} />
               {[
                 { opts: MONEDAS.map((m) => ({ key: m, label: m })), value: moneda, set: (v: string) => setMoneda(v as Moneda) },
                 { opts: IVA_OPTS.map(({ key, label }) => ({ key, label })), value: iva, set: (v: string) => setIva(v as IVA) },
               ].map(({ opts, value, set: setter }, gi) => (
-                <div key={gi} className="flex items-center p-1 rounded-xl gap-1" style={{ backgroundColor: "rgba(212,197,169,0.25)" }}>
+                <div key={gi} className="flex items-center p-1 rounded-xl gap-1 shrink-0" style={{ backgroundColor: "rgba(212,197,169,0.25)" }}>
                   {opts.map(({ key, label }) => (
                     <button key={key} onClick={() => setter(key)}
                       className="px-3 py-1.5 rounded-lg text-xs font-semibold transition-all"
@@ -376,13 +376,13 @@ export default function FinanzasPage() {
                 </div>
               ))}
               {!loading && gastos.length > 0 && (
-                <button onClick={exportar} className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-semibold"
+                <button onClick={exportar} className="hidden md:flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-semibold"
                   style={{ border: "1.5px solid rgba(212,197,169,0.8)", color: "var(--color-tierra)", backgroundColor: "transparent" }}>
                   <Download size={15} strokeWidth={2} />Exportar
                 </button>
               )}
-              <button onClick={() => setShowModal(true)} className="flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-semibold text-white hover:opacity-90" style={{ backgroundColor: "var(--color-campo)" }}>
-                <Plus size={16} strokeWidth={2.5} />Nuevo Movimiento
+              <button onClick={() => setShowModal(true)} className="flex items-center gap-2 px-4 md:px-5 py-2.5 rounded-xl text-sm font-semibold text-white hover:opacity-90 shrink-0" style={{ backgroundColor: "var(--color-campo)" }}>
+                <Plus size={16} strokeWidth={2.5} /><span className="hidden sm:inline">Nuevo Movimiento</span><span className="sm:hidden">Nuevo</span>
               </button>
             </div>
           </div>
@@ -396,7 +396,7 @@ export default function FinanzasPage() {
           ) : (
             <>
               {/* Summary cards */}
-              <div className="grid grid-cols-3 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                 {[
                   { label: "Ingresos", value: totalIngresos, icon: TrendingUp,  color: "#16a34a", bg: "rgba(22,163,74,0.09)"  },
                   { label: "Gastos",   value: totalGastos,   icon: TrendingDown, color: "#dc2626", bg: "rgba(220,38,38,0.07)"  },
@@ -429,7 +429,7 @@ export default function FinanzasPage() {
                 </div>
               ) : (
                 <>
-                  <div className="grid grid-cols-2 gap-4">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     {/* Categorías */}
                     <div className="rounded-2xl p-6 flex flex-col gap-4" style={{ backgroundColor: "#ffffff", border: "1px solid rgba(212,197,169,0.5)", boxShadow: "0 1px 3px rgba(26,26,24,0.06)" }}>
                       <h3 className="text-base font-semibold" style={{ color: "var(--color-tierra)", fontFamily: "var(--font-playfair), Georgia, serif" }}>Categorías de gastos</h3>
@@ -491,8 +491,16 @@ export default function FinanzasPage() {
                     <table className="w-full">
                       <thead>
                         <tr style={{ borderBottom: "1px solid rgba(212,197,169,0.35)" }}>
-                          {["Fecha", "Concepto", "Categoría", "Tipo", "Monto", "Registrado por", ""].map((col) => (
-                            <th key={col} className="px-6 py-3 text-left text-xs font-semibold tracking-wider uppercase" style={{ color: "rgba(26,26,24,0.38)", backgroundColor: "rgba(240,237,230,0.5)" }}>{col}</th>
+                          {[
+                            { label: "Fecha", hide: false },
+                            { label: "Concepto", hide: false },
+                            { label: "Categoría", hide: false },
+                            { label: "Tipo", hide: false },
+                            { label: "Monto", hide: false },
+                            { label: "Registrado por", hide: true },
+                            { label: "", hide: false },
+                          ].map(({ label, hide }) => (
+                            <th key={label} className={`px-6 py-3 text-left text-xs font-semibold tracking-wider uppercase${hide ? " col-mobile-hidden" : ""}`} style={{ color: "rgba(26,26,24,0.38)", backgroundColor: "rgba(240,237,230,0.5)" }}>{label}</th>
                           ))}
                         </tr>
                       </thead>
@@ -519,7 +527,7 @@ export default function FinanzasPage() {
                                 {mov.tipo === "ingreso" ? "+" : "-"}{fmtFull(applyFilters(mov.monto, moneda, iva), moneda)}
                               </span>
                             </td>
-                            <td className="px-6 py-3.5 text-sm" style={{ color: "rgba(26,26,24,0.5)" }}>
+                            <td className="px-6 py-3.5 text-sm col-mobile-hidden" style={{ color: "rgba(26,26,24,0.5)" }}>
                               {mov.created_by ? (profilesMap[mov.created_by] ?? "—") : "—"}
                             </td>
                             <td className="px-4 py-3.5 text-right">

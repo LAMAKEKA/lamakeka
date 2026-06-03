@@ -145,8 +145,8 @@ function NuevoInsumoModal({ establecimientoId, onClose, onCreated }: ModalProps)
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center px-4" style={{ backgroundColor: "rgba(26,26,24,0.45)" }} onClick={onClose}>
-      <div className="w-full max-w-md rounded-2xl p-6 flex flex-col gap-5"
+    <div className="fixed inset-0 z-50 flex items-end md:items-center md:px-4" style={{ backgroundColor: "rgba(26,26,24,0.45)" }} onClick={onClose}>
+      <div className="w-full md:max-w-md rounded-t-2xl md:rounded-2xl p-6 flex flex-col gap-5 max-h-[90vh] overflow-y-auto"
         style={{ backgroundColor: "#ffffff", boxShadow: "0 20px 60px rgba(26,26,24,0.18)", border: "1px solid rgba(212,197,169,0.5)", ...dragStyle }}
         onClick={(e) => e.stopPropagation()}>
         <div className="flex items-center justify-between" onMouseDown={onDragStart} style={{ cursor: "grab" }}>
@@ -367,8 +367,8 @@ export default function InsumosPage() {
               <p className="text-xs font-medium tracking-widest uppercase mb-1" style={{ color: "rgba(26,26,24,0.38)" }}>Gestión</p>
               <h1 className="text-2xl font-bold leading-tight" style={{ color: "var(--color-tierra)", fontFamily: "var(--font-playfair), Georgia, serif" }}>Insumos</h1>
             </div>
-            <div className="flex items-center gap-3">
-              <div className="relative">
+            <div className="flex items-center gap-2">
+              <div className="relative hidden md:block">
                 <Search size={14} className="absolute left-3.5 top-1/2 -translate-y-1/2" style={{ color: "rgba(26,26,24,0.35)" }} />
                 <input type="text" value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Buscar insumo..."
                   className="pl-9 pr-4 py-2.5 rounded-xl text-sm outline-none"
@@ -378,19 +378,19 @@ export default function InsumosPage() {
                 />
               </div>
               {!loading && (
-                <button onClick={() => setShowImportModal(true)} className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-semibold"
+                <button onClick={() => setShowImportModal(true)} className="hidden md:flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-semibold"
                   style={{ border: "1.5px solid rgba(212,197,169,0.8)", color: "var(--color-tierra)", backgroundColor: "transparent" }}>
                   <Upload size={15} strokeWidth={2} />Importar
                 </button>
               )}
               {!loading && insumos.length > 0 && (
-                <button onClick={exportar} className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-semibold"
+                <button onClick={exportar} className="hidden md:flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-semibold"
                   style={{ border: "1.5px solid rgba(212,197,169,0.8)", color: "var(--color-tierra)", backgroundColor: "transparent" }}>
                   <Download size={15} strokeWidth={2} />Exportar
                 </button>
               )}
-              <button onClick={() => setShowModal(true)} className="flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-semibold text-white hover:opacity-90" style={{ backgroundColor: "var(--color-campo)" }}>
-                <Plus size={16} strokeWidth={2.5} />Nuevo Insumo
+              <button onClick={() => setShowModal(true)} className="flex items-center gap-2 px-4 md:px-5 py-2.5 rounded-xl text-sm font-semibold text-white hover:opacity-90" style={{ backgroundColor: "var(--color-campo)" }}>
+                <Plus size={16} strokeWidth={2.5} /><span className="hidden sm:inline">Nuevo Insumo</span><span className="sm:hidden">Nuevo</span>
               </button>
             </div>
           </div>
@@ -433,14 +433,14 @@ export default function InsumosPage() {
                     <thead>
                       <tr style={{ borderBottom: "1px solid rgba(212,197,169,0.3)" }}>
                         {[
-                          { label: "Producto",        width: "w-[22%]" },
-                          { label: "Inventario",      width: "w-[18%]" },
-                          { label: "Mínimo",          width: "w-[10%]" },
-                          { label: "Registrar",       width: "w-[16%]" },
-                          { label: "Registrado por",  width: "w-[20%]" },
-                          { label: "Acciones",        width: "w-[14%]" },
-                        ].map(({ label, width }) => (
-                          <th key={label} className={`${width} px-5 py-3 text-left text-xs font-semibold tracking-wider uppercase`} style={{ color: "rgba(26,26,24,0.38)", backgroundColor: "rgba(240,237,230,0.3)" }}>
+                          { label: "Producto",        width: "w-[22%]", hide: false },
+                          { label: "Inventario",      width: "w-[18%]", hide: false },
+                          { label: "Mínimo",          width: "w-[10%]", hide: false },
+                          { label: "Registrar",       width: "w-[16%]", hide: false },
+                          { label: "Registrado por",  width: "w-[20%]", hide: true  },
+                          { label: "Acciones",        width: "w-[14%]", hide: false },
+                        ].map(({ label, width, hide }) => (
+                          <th key={label} className={`${width} px-5 py-3 text-left text-xs font-semibold tracking-wider uppercase${hide ? " col-mobile-hidden" : ""}`} style={{ color: "rgba(26,26,24,0.38)", backgroundColor: "rgba(240,237,230,0.3)" }}>
                             {label}
                           </th>
                         ))}
@@ -499,7 +499,7 @@ export default function InsumosPage() {
                                 )}
                               </div>
                             </td>
-                            <td className="px-5 py-4 text-sm" style={{ color: "rgba(26,26,24,0.5)" }}>
+                            <td className="px-5 py-4 text-sm col-mobile-hidden" style={{ color: "rgba(26,26,24,0.5)" }}>
                               {ins.created_by ? (profilesMap[ins.created_by] ?? "—") : "—"}
                             </td>
                             <td className="px-5 py-4">

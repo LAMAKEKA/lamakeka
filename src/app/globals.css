@@ -72,7 +72,15 @@ body {
 }
 
 .table-wrap table {
-  min-width: 640px;
+  min-width: 480px;
+}
+
+/* ─── Mobile column hiding ───────────────────────────────────────────────── */
+
+@media (max-width: 767px) {
+  .col-mobile-hidden {
+    display: none;
+  }
 }
 
 /* ─── Sidebar transition ─────────────────────────────────────────────────── */

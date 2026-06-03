@@ -810,7 +810,7 @@ export default function ReportesPage() {
   }
 
   return (
-    <main className="flex-1 overflow-y-auto px-6 py-6 max-w-7xl mx-auto w-full">
+    <main className="flex-1 overflow-y-auto px-4 md:px-6 py-6 max-w-7xl mx-auto w-full">
       {/* Header */}
       <div className="mb-6">
         <h1
@@ -851,24 +851,26 @@ export default function ReportesPage() {
       </div>
 
       {/* Tab bar */}
-      <div
-        className="flex gap-1 p-1 rounded-xl mb-6 w-fit"
-        style={{ backgroundColor: "rgba(212,197,169,0.2)" }}
-      >
-        {TABS.map(({ key, label }) => (
-          <button
-            key={key}
-            onClick={() => setActiveTab(key)}
-            className="px-5 py-2 rounded-lg text-sm font-medium transition-all duration-150"
-            style={{
-              backgroundColor: activeTab === key ? "#ffffff" : "transparent",
-              color: activeTab === key ? "#1a1a18" : "rgba(26,26,24,0.45)",
-              boxShadow: activeTab === key ? "0 1px 4px rgba(0,0,0,0.08)" : "none",
-            }}
-          >
-            {label}
-          </button>
-        ))}
+      <div className="overflow-x-auto -mx-4 md:mx-0 px-4 md:px-0 mb-6">
+        <div
+          className="flex gap-1 p-1 rounded-xl w-fit"
+          style={{ backgroundColor: "rgba(212,197,169,0.2)" }}
+        >
+          {TABS.map(({ key, label }) => (
+            <button
+              key={key}
+              onClick={() => setActiveTab(key)}
+              className="px-5 py-2 rounded-lg text-sm font-medium transition-all duration-150 whitespace-nowrap"
+              style={{
+                backgroundColor: activeTab === key ? "#ffffff" : "transparent",
+                color: activeTab === key ? "#1a1a18" : "rgba(26,26,24,0.45)",
+                boxShadow: activeTab === key ? "0 1px 4px rgba(0,0,0,0.08)" : "none",
+              }}
+            >
+              {label}
+            </button>
+          ))}
+        </div>
       </div>
 
       {/* Tab content */}
