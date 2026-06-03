@@ -689,6 +689,18 @@ export default function ReportesPage() {
   const [loadedI, setLoadedI] = useState(false);
   const [loadedT, setLoadedT] = useState(false);
 
+  // Date range — default: año actual
+  const [dateRange, setDateRange] = useState(() => {
+    const d = new Date();
+    return { desde: `${d.getFullYear()}-01-01`, hasta: d.toISOString().split("T")[0] };
+  });
+
+  // Resetear datos cuando cambia el rango de fechas
+  useEffect(() => {
+    setLoadedH(false);
+    setLoadedF(false);
+  }, [dateRange]);
+
   // Get establecimiento
   useEffect(() => {
     const supabase = createClient();
@@ -707,14 +719,21 @@ export default function ReportesPage() {
     setLoadingH(true);
     const supabase = createClient();
     const [animalesRes, prenezRes] = await Promise.all([
-      supabase.from("animales").select("categoria, potrero, cantidad, fecha, tipo").eq("establecimiento_id", estId).order("fecha", { ascending: false }),
-      supabase.from("prenez").select("categoria, fecha_diagnostico, total_diagnosticadas, prenadas").eq("establecimiento_id", estId),
+      supabase.from("animales").select("categoria, potrero, cantidad, fecha, tipo")
+        .eq("establecimiento_id", estId)
+        .gte("fecha", dateRange.desde)
+        .lte("fecha", dateRange.hasta)
+        .order("fecha", { ascending: false }),
+      supabase.from("prenez").select("categoria, fecha_diagnostico, total_diagnosticadas, prenadas")
+        .eq("establecimiento_id", estId)
+        .gte("fecha_diagnostico", dateRange.desde)
+        .lte("fecha_diagnostico", dateRange.hasta),
     ]);
     setAnimales(animalesRes.data ?? []);
     setPrenezData(prenezRes.data ?? []);
     setLoadedH(true);
     setLoadingH(false);
-  }, [loadedH]);
+  }, [loadedH, dateRange]);
 
   const loadFinanzas = useCallback(async (estId: string) => {
     if (loadedF) return;
@@ -724,11 +743,13 @@ export default function ReportesPage() {
       .from("gastos")
       .select("categoria, tipo, monto, fecha")
       .eq("establecimiento_id", estId)
+      .gte("fecha", dateRange.desde)
+      .lte("fecha", dateRange.hasta)
       .order("fecha", { ascending: false });
     setGastos(data ?? []);
     setLoadedF(true);
     setLoadingF(false);
-  }, [loadedF]);
+  }, [loadedF, dateRange]);
 
   const loadInsumos = useCallback(async (estId: string) => {
     if (loadedI) return;
@@ -808,6 +829,26 @@ export default function ReportesPage() {
           <AlertCircle size={15} /> {error}
         </div>
       )}
+
+      {/* Date range filter */}
+      <div className="flex items-center gap-3 mb-4 flex-wrap">
+        <span className="text-xs font-medium uppercase tracking-wider" style={{ color: "rgba(26,26,24,0.45)" }}>Período</span>
+        <input type="date" value={dateRange.desde}
+          onChange={(e) => setDateRange((r) => ({ ...r, desde: e.target.value }))}
+          className="px-3 py-2 rounded-xl text-sm outline-none"
+          style={{ border: "1.5px solid rgba(212,197,169,0.8)", backgroundColor: "#ffffff", color: "var(--color-tierra)" }}
+          onFocus={(e) => { e.target.style.borderColor = "var(--color-cuero)"; }}
+          onBlur={(e) => { e.target.style.borderColor = "rgba(212,197,169,0.8)"; }}
+        />
+        <span className="text-sm" style={{ color: "rgba(26,26,24,0.3)" }}>→</span>
+        <input type="date" value={dateRange.hasta}
+          onChange={(e) => setDateRange((r) => ({ ...r, hasta: e.target.value }))}
+          className="px-3 py-2 rounded-xl text-sm outline-none"
+          style={{ border: "1.5px solid rgba(212,197,169,0.8)", backgroundColor: "#ffffff", color: "var(--color-tierra)" }}
+          onFocus={(e) => { e.target.style.borderColor = "var(--color-cuero)"; }}
+          onBlur={(e) => { e.target.style.borderColor = "rgba(212,197,169,0.8)"; }}
+        />
+      </div>
 
       {/* Tab bar */}
       <div

@@ -43,7 +43,6 @@ const CAT_COLORS: Record<string, string> = {
   "Otros":              "rgba(26,26,24,0.4)",
 };
 
-const PERIODOS = ["Último mes", "Último trimestre", "Último año", "Todo"];
 const MONEDAS: Moneda[] = ["ARS", "USD"];
 const IVA_OPTS: { key: IVA; label: string }[] = [
   { key: "con", label: "Con IVA" },
@@ -254,7 +253,11 @@ function DonutChart({ categorias }: { categorias: { nombre: string; color: strin
 export default function FinanzasPage() {
   const [moneda, setMoneda] = useState<Moneda>("ARS");
   const [iva, setIva] = useState<IVA>("con");
-  const [periodo, setPeriodo] = useState("Último mes");
+  const [fechaDesde, setFechaDesde] = useState(() => {
+    const d = new Date();
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-01`;
+  });
+  const [fechaHasta, setFechaHasta] = useState(new Date().toISOString().split("T")[0]);
   const [gastos, setGastos] = useState<Gasto[]>([]);
   const [loading, setLoading] = useState(true);
   const [establecimientoId, setEstablecimientoId] = useState<string | null>(null);
@@ -272,6 +275,7 @@ export default function FinanzasPage() {
   }, [openMenuId]);
 
   const fetchData = useCallback(async () => {
+    setLoading(true);
     const supabase = createClient();
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return;
@@ -279,7 +283,8 @@ export default function FinanzasPage() {
     if (!estab) return;
     setEstablecimientoId(estab.id);
     setEstablecimientoNombre(estab.nombre ?? "");
-    const { data } = await supabase.from("gastos").select("*").eq("establecimiento_id", estab.id).order("fecha", { ascending: false });
+    const { data } = await supabase.from("gastos").select("*").eq("establecimiento_id", estab.id)
+      .gte("fecha", fechaDesde).lte("fecha", fechaHasta).order("fecha", { ascending: false });
     setGastos(data ?? []);
 
     const ids = [...new Set((data ?? []).map((r) => r.created_by).filter(Boolean))] as string[];
@@ -291,7 +296,7 @@ export default function FinanzasPage() {
     }
 
     setLoading(false);
-  }, []);
+  }, [fechaDesde, fechaHasta]);
 
   useEffect(() => { fetchData(); }, [fetchData]);
 
@@ -349,11 +354,13 @@ export default function FinanzasPage() {
               <h1 className="text-2xl font-bold leading-tight" style={{ color: "var(--color-tierra)", fontFamily: "var(--font-playfair), Georgia, serif" }}>Finanzas</h1>
             </div>
             <div className="flex items-center gap-2">
-              <select value={periodo} onChange={(e) => setPeriodo(e.target.value)}
+              <input type="date" value={fechaDesde} onChange={(e) => setFechaDesde(e.target.value)}
                 className="px-3 py-2 rounded-xl text-sm outline-none"
-                style={{ border: "1.5px solid rgba(212,197,169,0.8)", backgroundColor: "var(--color-pampa)", color: "var(--color-tierra)" }}>
-                {PERIODOS.map((p) => <option key={p}>{p}</option>)}
-              </select>
+                style={{ border: "1.5px solid rgba(212,197,169,0.8)", backgroundColor: "var(--color-pampa)", color: "var(--color-tierra)" }} />
+              <span className="text-sm" style={{ color: "rgba(26,26,24,0.35)" }}>—</span>
+              <input type="date" value={fechaHasta} onChange={(e) => setFechaHasta(e.target.value)}
+                className="px-3 py-2 rounded-xl text-sm outline-none"
+                style={{ border: "1.5px solid rgba(212,197,169,0.8)", backgroundColor: "var(--color-pampa)", color: "var(--color-tierra)" }} />
               {[
                 { opts: MONEDAS.map((m) => ({ key: m, label: m })), value: moneda, set: (v: string) => setMoneda(v as Moneda) },
                 { opts: IVA_OPTS.map(({ key, label }) => ({ key, label })), value: iva, set: (v: string) => setIva(v as IVA) },
@@ -405,7 +412,7 @@ export default function FinanzasPage() {
                     <p className="text-2xl font-bold" style={{ color, fontFamily: "var(--font-playfair), Georgia, serif" }}>
                       {gastos.length === 0 ? (moneda === "USD" ? "US$ 0" : "$0") : fmt(Math.abs(value), moneda)}
                     </p>
-                    <p className="text-xs mt-0.5" style={{ color: "rgba(26,26,24,0.35)" }}>{periodo} · {iva === "con" ? "con IVA" : "sin IVA"}</p>
+                    <p className="text-xs mt-0.5" style={{ color: "rgba(26,26,24,0.35)" }}>{fmtFecha(fechaDesde)} — {fmtFecha(fechaHasta)} · {iva === "con" ? "con IVA" : "sin IVA"}</p>
                   </div>
                 ))}
               </div>

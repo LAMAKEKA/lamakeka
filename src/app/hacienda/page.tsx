@@ -417,21 +417,26 @@ function NuevoDiagnosticoModal({ establecimientoId, potreros, onClose, onCreated
               className="w-full px-4 py-3 rounded-xl text-sm outline-none" style={INPUT_STYLE} onFocus={onFocus} onBlur={onBlur} />
             <datalist id="potreros-list">{potreros.map((p) => <option key={p} value={p} />)}</datalist>
           </div>
-          <div className="grid grid-cols-2 gap-3">
-            <div>
-              <label className="form-label">Categoría</label>
-              <select value={form.categoria} onChange={(e) => set("categoria")(e.target.value)}
-                className="w-full px-4 py-3 rounded-xl text-sm outline-none" style={INPUT_STYLE}
-                onFocus={(e) => { e.target.style.borderColor = "var(--color-cuero)"; }}
-                onBlur={(e) => { e.target.style.borderColor = "rgba(212,197,169,0.8)"; }}>
-                {CATEGORIAS.map((c) => <option key={c}>{c}</option>)}
-              </select>
+          <div>
+            <label className="form-label">Categoría</label>
+            <div className="flex gap-2">
+              {(["Vacas", "Vaquillonas"] as const).map((c) => {
+                const isSelected = form.categoria === c;
+                const st = CATEGORIA_COLORS[c];
+                return (
+                  <button key={c} type="button" onClick={() => setForm((f) => ({ ...f, categoria: c }))}
+                    className="flex-1 py-2.5 rounded-xl text-xs font-semibold transition-all"
+                    style={{ backgroundColor: isSelected ? st.bg : "transparent", color: isSelected ? st.color : "rgba(26,26,24,0.4)", border: `1.5px solid ${isSelected ? st.color : "rgba(212,197,169,0.6)"}` }}>
+                    {c}
+                  </button>
+                );
+              })}
             </div>
-            <div>
-              <label className="form-label">Fecha diagnóstico</label>
-              <input type="date" value={form.fecha_diagnostico} onChange={(e) => set("fecha_diagnostico")(e.target.value)}
-                className="w-full px-4 py-3 rounded-xl text-sm outline-none" style={INPUT_STYLE} onFocus={onFocus} onBlur={onBlur} />
-            </div>
+          </div>
+          <div>
+            <label className="form-label">Fecha diagnóstico</label>
+            <input type="date" value={form.fecha_diagnostico} onChange={(e) => set("fecha_diagnostico")(e.target.value)}
+              className="w-full px-4 py-3 rounded-xl text-sm outline-none" style={INPUT_STYLE} onFocus={onFocus} onBlur={onBlur} />
           </div>
           <div className="grid grid-cols-3 gap-3">
             <div>
