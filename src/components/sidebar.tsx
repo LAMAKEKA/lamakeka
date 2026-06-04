@@ -1,5 +1,6 @@
 "use client";
 
+import { useState, useEffect } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
@@ -37,6 +38,26 @@ interface SidebarProps {
 export function Sidebar({ onClose }: SidebarProps) {
   const pathname = usePathname();
   const router = useRouter();
+
+  interface Profile { full_name: string | null; email: string }
+  const [profile, setProfile] = useState<Profile>({ full_name: null, email: "" });
+
+  useEffect(() => {
+    const supabase = createClient();
+    (async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+      const { data } = await supabase
+        .from("profiles")
+        .select("full_name, email")
+        .eq("id", user.id)
+        .single();
+      setProfile({
+        full_name: data?.full_name ?? null,
+        email: data?.email ?? user.email ?? "",
+      });
+    })();
+  }, []);
 
   async function handleSignOut() {
     const supabase = createClient();
@@ -171,7 +192,7 @@ export function Sidebar({ onClose }: SidebarProps) {
               className="w-9 h-9 rounded-full flex items-center justify-center text-white font-semibold text-sm"
               style={{ backgroundColor: "var(--color-cuero)" }}
             >
-              CY
+              {(profile.full_name ?? profile.email).slice(0, 2).toUpperCase()}
             </div>
             <span
               className="absolute -bottom-0.5 -right-0.5 w-3.5 h-3.5 rounded-full border-2 flex items-center justify-center"
@@ -183,9 +204,9 @@ export function Sidebar({ onClose }: SidebarProps) {
             </span>
           </div>
           <div className="flex-1 min-w-0">
-            <p className="text-white text-sm font-medium leading-tight truncate">Carlos Yaquinta</p>
+            <p className="text-white text-sm font-medium leading-tight truncate">{profile.full_name ?? profile.email}</p>
             <p className="text-xs truncate" style={{ color: "rgba(255,255,255,0.38)" }}>
-              Administrador
+              {profile.email}
             </p>
           </div>
           <button
