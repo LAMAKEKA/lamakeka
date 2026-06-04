@@ -535,7 +535,7 @@ export default function HaciendaPage() {
       ? `${user.user_metadata.nombre} ${user.user_metadata.apellido}`
       : user.email ?? "";
     setUserName(displayName);
-    const { data: estab } = await supabase.from("establecimientos").select("id, nombre").eq("user_id", user.id).single();
+    const { data: estab } = await supabase.from("establecimientos").select("id, nombre").limit(1).single();
     if (!estab) return;
     setEstablecimientoId(estab.id);
     setEstablecimientoNombre(estab.nombre ?? "");

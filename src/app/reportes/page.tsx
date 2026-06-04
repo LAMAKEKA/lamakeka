@@ -707,7 +707,7 @@ export default function ReportesPage() {
     (async () => {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) { setLoadingBase(false); return; }
-      const { data } = await supabase.from("establecimientos").select("id").eq("user_id", user.id).maybeSingle();
+      const { data } = await supabase.from("establecimientos").select("id").limit(1).maybeSingle();
       if (data) setEstablecimientoId(data.id);
       setLoadingBase(false);
     })();

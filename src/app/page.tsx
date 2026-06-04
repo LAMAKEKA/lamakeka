@@ -219,7 +219,7 @@ export default async function DashboardPage() {
   const { data: estab } = await supabase
     .from("establecimientos")
     .select("id, nombre")
-    .eq("user_id", user.id)
+    .limit(1)
     .single();
   if (!estab) redirect("/setup");
 

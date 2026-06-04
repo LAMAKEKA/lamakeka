@@ -273,7 +273,7 @@ export default function InsumosPage() {
     const supabase = createClient();
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return;
-    const { data: estab } = await supabase.from("establecimientos").select("id, nombre").eq("user_id", user.id).single();
+    const { data: estab } = await supabase.from("establecimientos").select("id, nombre").limit(1).single();
     if (!estab) return;
     setEstablecimientoId(estab.id);
     setEstablecimientoNombre(estab.nombre ?? "");

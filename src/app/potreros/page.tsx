@@ -292,7 +292,7 @@ export default function PotrerosPage() {
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return;
 
-    const { data: estab } = await supabase.from("establecimientos").select("id").eq("user_id", user.id).single();
+    const { data: estab } = await supabase.from("establecimientos").select("id").limit(1).single();
     if (!estab) return;
     setEstablecimientoId(estab.id);
 
