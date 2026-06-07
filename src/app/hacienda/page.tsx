@@ -164,9 +164,10 @@ interface AnimalModalProps {
   onClose: () => void;
   onCreated: () => void;
   editData?: Animal;
+  potreros: string[];
 }
 
-function NuevoAnimalModal({ establecimientoId, onClose, onCreated, editData }: AnimalModalProps) {
+function NuevoAnimalModal({ establecimientoId, onClose, onCreated, editData, potreros }: AnimalModalProps) {
   const [form, setForm] = useState(
     editData
       ? { categoria: editData.categoria as typeof CATEGORIAS[number], potrero: editData.potrero, cantidad: String(editData.cantidad), fecha: editData.fecha, responsable: editData.responsable, tipo: (editData.tipo ?? "Ingreso") as TipoMovimiento, monto_venta: "" }
@@ -292,8 +293,11 @@ function NuevoAnimalModal({ establecimientoId, onClose, onCreated, editData }: A
           </div>
           <div>
             <label className="form-label">Potrero</label>
-            <input type="text" value={form.potrero} onChange={(e) => set("potrero")(e.target.value)} placeholder="Ej: Potrero Norte"
-              className="w-full px-4 py-3 rounded-xl text-sm outline-none" style={INPUT_STYLE} onFocus={onFocus} onBlur={onBlur} />
+            <select value={form.potrero} onChange={(e) => set("potrero")(e.target.value)}
+              className="w-full px-4 py-3 rounded-xl text-sm outline-none" style={INPUT_STYLE} onFocus={onFocus} onBlur={onBlur}>
+              <option value="">Seleccionar potrero...</option>
+              {potreros.map((p) => <option key={p} value={p}>{p}</option>)}
+            </select>
           </div>
           <div className="grid grid-cols-2 gap-3">
             <div>
@@ -522,6 +526,7 @@ export default function HaciendaPage() {
   const [loadingPrenez, setLoadingPrenez] = useState(false);
   const [prenezLoaded, setPrenezLoaded] = useState(false);
   const [showModalPrenez, setShowModalPrenez] = useState(false);
+  const [potrerosFromDB, setPotrerosFromDB] = useState<string[]>([]);
 
   useEffect(() => {
     if (!openMenuId) return;
@@ -548,6 +553,8 @@ export default function HaciendaPage() {
       .eq("deleted", false)
       .order("created_at", { ascending: false });
     setAnimales(data ?? []);
+    const { data: potrerosData } = await supabase.from("potreros").select("nombre").eq("establecimiento_id", estab.id).order("nombre");
+    setPotrerosFromDB((potrerosData ?? []).map((p) => p.nombre));
     const ids = [...new Set((data ?? []).map((r) => r.created_by).filter(Boolean))] as string[];
     if (ids.length > 0) {
       const { data: profs } = await supabase.from("profiles").select("id, email, full_name").in("id", ids);
@@ -578,6 +585,7 @@ export default function HaciendaPage() {
   }, [seccion, establecimientoId, prenezLoaded, loadPrenezData]);
 
   const potreros = [...new Set(animales.map((a) => a.potrero))].sort();
+  const potrerosMerged = [...new Set([...potrerosFromDB, ...potreros])].sort();
 
   const baseData = activeTab === "mis-datos"
     ? animales.filter((r) => r.responsable.toLowerCase().includes(userName.split(" ")[0].toLowerCase()))
@@ -648,7 +656,8 @@ export default function HaciendaPage() {
       {(showModal || editAnimal !== null) && establecimientoId && (
         <NuevoAnimalModal establecimientoId={establecimientoId}
           onClose={() => { setShowModal(false); setEditAnimal(null); }}
-          onCreated={fetchData} editData={editAnimal ?? undefined} />
+          onCreated={fetchData} editData={editAnimal ?? undefined}
+          potreros={potrerosMerged} />
       )}
       {showModalPrenez && establecimientoId && (
         <NuevoDiagnosticoModal establecimientoId={establecimientoId} potreros={potreros}

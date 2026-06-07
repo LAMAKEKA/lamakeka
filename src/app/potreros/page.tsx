@@ -73,10 +73,24 @@ interface ModalProps {
   establecimientoId: string;
   onClose: () => void;
   onCreated: () => void;
+  editData?: Potrero;
 }
 
-function NuevoPotreroModal({ establecimientoId, onClose, onCreated }: ModalProps) {
-  const [form, setForm] = useState(FORM_EMPTY);
+function NuevoPotreroModal({ establecimientoId, onClose, onCreated, editData }: ModalProps) {
+  const [form, setForm] = useState(
+    editData
+      ? {
+          nombre: editData.nombre,
+          hectareas: String(editData.hectareas),
+          estado: editData.estado,
+          cabezas: String(editData.cabezas),
+          categoria_animal: editData.categoria_animal ?? "",
+          desde: editData.desde ?? "",
+          latitud: editData.latitud != null ? String(editData.latitud) : "",
+          longitud: editData.longitud != null ? String(editData.longitud) : "",
+        }
+      : FORM_EMPTY
+  );
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -93,8 +107,7 @@ function NuevoPotreroModal({ establecimientoId, onClose, onCreated }: ModalProps
     setLoading(true);
     setError(null);
     const supabase = createClient();
-    const { error: dbError } = await supabase.from("potreros").insert({
-      establecimiento_id: establecimientoId,
+    const payload = {
       nombre: form.nombre.trim(),
       hectareas: ha,
       estado: form.estado,
@@ -103,8 +116,14 @@ function NuevoPotreroModal({ establecimientoId, onClose, onCreated }: ModalProps
       desde: form.desde || null,
       latitud: form.latitud ? parseFloat(form.latitud) : null,
       longitud: form.longitud ? parseFloat(form.longitud) : null,
-    });
-    if (dbError) { setError(dbError.message); setLoading(false); return; }
+    };
+    if (editData) {
+      const { error: dbError } = await supabase.from("potreros").update(payload).eq("id", editData.id);
+      if (dbError) { setError(dbError.message); setLoading(false); return; }
+    } else {
+      const { error: dbError } = await supabase.from("potreros").insert({ establecimiento_id: establecimientoId, ...payload });
+      if (dbError) { setError(dbError.message); setLoading(false); return; }
+    }
     onCreated();
     onClose();
   }
@@ -115,7 +134,7 @@ function NuevoPotreroModal({ establecimientoId, onClose, onCreated }: ModalProps
         style={{ backgroundColor: "#ffffff", boxShadow: "0 20px 60px rgba(26,26,24,0.18)", border: "1px solid rgba(212,197,169,0.5)" }}
         onClick={(e) => e.stopPropagation()}>
         <div className="flex items-center justify-between">
-          <h2 className="text-lg font-semibold" style={{ color: "var(--color-tierra)", fontFamily: "var(--font-playfair), Georgia, serif" }}>Nuevo Potrero</h2>
+          <h2 className="text-lg font-semibold" style={{ color: "var(--color-tierra)", fontFamily: "var(--font-playfair), Georgia, serif" }}>{editData ? "Editar Potrero" : "Nuevo Potrero"}</h2>
           <button onClick={onClose} className="w-7 h-7 rounded-lg flex items-center justify-center" style={{ color: "rgba(26,26,24,0.4)" }}
             onMouseEnter={(e) => { (e.currentTarget as HTMLButtonElement).style.backgroundColor = "rgba(212,197,169,0.3)"; }}
             onMouseLeave={(e) => { (e.currentTarget as HTMLButtonElement).style.backgroundColor = "transparent"; }}>
@@ -184,8 +203,8 @@ function NuevoPotreroModal({ establecimientoId, onClose, onCreated }: ModalProps
                 <div key={field}>
                   <label className="form-label">{label}</label>
                   <input
-                    type="number"
-                    step="any"
+                    type="text"
+                    inputMode="decimal"
                     value={form[field as keyof typeof FORM_EMPTY]}
                     onChange={(e) => set(field as keyof typeof FORM_EMPTY)(e.target.value)}
                     placeholder={placeholder}
@@ -270,6 +289,15 @@ export default function PotrerosPage() {
   const [loading, setLoading] = useState(true);
   const [establecimientoId, setEstablecimientoId] = useState<string | null>(null);
   const [showModal, setShowModal] = useState(false);
+  const [openMenuId, setOpenMenuId] = useState<string | null>(null);
+  const [editPotrero, setEditPotrero] = useState<Potrero | null>(null);
+
+  useEffect(() => {
+    if (!openMenuId) return;
+    function close() { setOpenMenuId(null); }
+    document.addEventListener("click", close);
+    return () => document.removeEventListener("click", close);
+  }, [openMenuId]);
 
   // Navigate to mapa tab via URL: /potreros?tab=mapa
   useEffect(() => {
@@ -310,6 +338,10 @@ export default function PotrerosPage() {
     <>
       {showModal && establecimientoId && (
         <NuevoPotreroModal establecimientoId={establecimientoId} onClose={() => setShowModal(false)} onCreated={fetchData} />
+      )}
+      {editPotrero && establecimientoId && (
+        <NuevoPotreroModal establecimientoId={establecimientoId} editData={editPotrero}
+          onClose={() => setEditPotrero(null)} onCreated={fetchData} />
       )}
 
       <div className="flex flex-col min-h-full">
@@ -374,13 +406,32 @@ export default function PotrerosPage() {
                             <h3 className="text-base font-semibold leading-tight" style={{ color: "var(--color-tierra)", fontFamily: "var(--font-playfair), Georgia, serif" }}>{pot.nombre}</h3>
                             <p className="text-xs mt-0.5" style={{ color: "rgba(26,26,24,0.38)" }}>{Number(pot.hectareas).toLocaleString("es-AR")} ha</p>
                           </div>
-                          <div className="flex items-center gap-2">
+                          <div className="flex items-center gap-2 relative">
                             <span className="text-[11px] font-medium px-2.5 py-1 rounded-full" style={{ backgroundColor: estado.bg, color: estado.color }}>{estado.label}</span>
-                            <button className="w-7 h-7 rounded-lg flex items-center justify-center" style={{ color: "rgba(26,26,24,0.3)" }}
-                              onMouseEnter={(e) => { (e.currentTarget as HTMLButtonElement).style.backgroundColor = "rgba(212,197,169,0.3)"; }}
-                              onMouseLeave={(e) => { (e.currentTarget as HTMLButtonElement).style.backgroundColor = "transparent"; }}>
+                            <button onClick={(e) => { e.stopPropagation(); setOpenMenuId(openMenuId === pot.id ? null : pot.id); }}
+                              className="w-7 h-7 rounded-lg flex items-center justify-center"
+                              style={{ color: openMenuId === pot.id ? "var(--color-tierra)" : "rgba(26,26,24,0.3)", backgroundColor: openMenuId === pot.id ? "rgba(212,197,169,0.3)" : "transparent" }}
+                              onMouseEnter={(e) => { if (openMenuId !== pot.id) { (e.currentTarget as HTMLButtonElement).style.backgroundColor = "rgba(212,197,169,0.3)"; } }}
+                              onMouseLeave={(e) => { if (openMenuId !== pot.id) { (e.currentTarget as HTMLButtonElement).style.backgroundColor = "transparent"; } }}>
                               <MoreHorizontal size={15} />
                             </button>
+                            {openMenuId === pot.id && (
+                              <div className="absolute right-0 top-full mt-1 z-20 rounded-xl overflow-hidden py-1"
+                                style={{ backgroundColor: "#ffffff", boxShadow: "0 4px 20px rgba(26,26,24,0.14)", border: "1px solid rgba(212,197,169,0.5)", minWidth: 148 }}>
+                                <button onClick={(e) => { e.stopPropagation(); setEditPotrero(pot); setOpenMenuId(null); }}
+                                  className="w-full px-4 py-2 text-sm text-left" style={{ color: "var(--color-tierra)" }}
+                                  onMouseEnter={(e) => { (e.currentTarget as HTMLButtonElement).style.backgroundColor = "rgba(212,197,169,0.2)"; }}
+                                  onMouseLeave={(e) => { (e.currentTarget as HTMLButtonElement).style.backgroundColor = "transparent"; }}>
+                                  Editar
+                                </button>
+                                <button onClick={async (e) => { e.stopPropagation(); setOpenMenuId(null); if (!confirm("¿Eliminar este potrero? Esta acción no se puede deshacer.")) return; await createClient().from("potreros").delete().eq("id", pot.id); await fetchData(); }}
+                                  className="w-full px-4 py-2 text-sm text-left" style={{ color: "#dc2626" }}
+                                  onMouseEnter={(e) => { (e.currentTarget as HTMLButtonElement).style.backgroundColor = "rgba(220,38,38,0.06)"; }}
+                                  onMouseLeave={(e) => { (e.currentTarget as HTMLButtonElement).style.backgroundColor = "transparent"; }}>
+                                  Eliminar
+                                </button>
+                              </div>
+                            )}
                           </div>
                         </div>
                         <div className="flex gap-4">
