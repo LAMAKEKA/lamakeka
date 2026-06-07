@@ -20,6 +20,7 @@ interface Animal {
   responsable: string;
   tipo: string | null;
   created_by: string | null;
+  deleted?: boolean;
 }
 
 interface Prenez {
@@ -58,11 +59,13 @@ const TIPO_COLORS: Record<TipoMovimiento, { bg: string; color: string }> = {
 
 const TIPOS_EGRESO = new Set<string>(["Venta", "Muerte", "Transferencia salida"]);
 
-const CATEGORIAS = ["Terneros", "Novillos", "Vacas", "Vaquillonas", "Toros"] as const;
+const CATEGORIAS = ["Terneros", "Terneras", "Novillos", "Novillitos", "Vacas", "Vaquillonas", "Toros"] as const;
 
 const CATEGORIA_COLORS: Record<string, { bg: string; color: string }> = {
   Terneros:    { bg: "rgba(37,99,235,0.08)",   color: "#2563eb" },
+  Terneras:    { bg: "rgba(37,99,235,0.08)",   color: "#2563eb" },
   Novillos:    { bg: "rgba(58,74,50,0.10)",    color: "var(--color-campo)" },
+  Novillitos:  { bg: "rgba(58,74,50,0.10)",    color: "var(--color-campo)" },
   Vacas:       { bg: "rgba(139,78,42,0.10)",   color: "var(--color-cuero)" },
   Vaquillonas: { bg: "rgba(217,119,6,0.10)",   color: "#d97706" },
   Toros:       { bg: "rgba(220,38,38,0.07)",   color: "#dc2626" },
@@ -542,6 +545,7 @@ export default function HaciendaPage() {
     const { data } = await supabase.from("animales")
       .select("id, categoria, potrero, cantidad, fecha, responsable, tipo, created_by")
       .eq("establecimiento_id", estab.id)
+      .eq("deleted", false)
       .order("created_at", { ascending: false });
     setAnimales(data ?? []);
     const ids = [...new Set((data ?? []).map((r) => r.created_by).filter(Boolean))] as string[];
@@ -896,6 +900,13 @@ export default function HaciendaPage() {
                                       onMouseEnter={(e) => { (e.currentTarget as HTMLButtonElement).style.backgroundColor = "rgba(212,197,169,0.2)"; }}
                                       onMouseLeave={(e) => { (e.currentTarget as HTMLButtonElement).style.backgroundColor = "transparent"; }}>
                                       <Clock size={13} />Ver historial
+                                    </button>
+                                    <hr style={{ borderColor: "rgba(212,197,169,0.4)", margin: "4px 0" }} />
+                                    <button onClick={async (e) => { e.stopPropagation(); setOpenMenuId(null); if (!confirm("¿Eliminar este registro? Se conservará en el historial de auditoría.")) return; await supabase.from("animales").update({ deleted: true }).eq("id", row.id); await fetchData(); }}
+                                      className="w-full px-4 py-2 text-sm text-left" style={{ color: "#dc2626" }}
+                                      onMouseEnter={(e) => { (e.currentTarget as HTMLButtonElement).style.backgroundColor = "rgba(220,38,38,0.06)"; }}
+                                      onMouseLeave={(e) => { (e.currentTarget as HTMLButtonElement).style.backgroundColor = "transparent"; }}>
+                                      Eliminar
                                     </button>
                                   </div>
                                 )}
