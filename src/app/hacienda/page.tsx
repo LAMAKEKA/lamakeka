@@ -902,7 +902,7 @@ export default function HaciendaPage() {
                                       <Clock size={13} />Ver historial
                                     </button>
                                     <hr style={{ borderColor: "rgba(212,197,169,0.4)", margin: "4px 0" }} />
-                                    <button onClick={async (e) => { e.stopPropagation(); setOpenMenuId(null); if (!confirm("¿Eliminar este registro? Se conservará en el historial de auditoría.")) return; await supabase.from("animales").update({ deleted: true }).eq("id", row.id); await fetchData(); }}
+                                    <button onClick={async (e) => { e.stopPropagation(); setOpenMenuId(null); if (!confirm("¿Eliminar este registro? Se conservará en el historial de auditoría.")) return; await createClient().from("animales").update({ deleted: true }).eq("id", row.id); await fetchData(); }}
                                       className="w-full px-4 py-2 text-sm text-left" style={{ color: "#dc2626" }}
                                       onMouseEnter={(e) => { (e.currentTarget as HTMLButtonElement).style.backgroundColor = "rgba(220,38,38,0.06)"; }}
                                       onMouseLeave={(e) => { (e.currentTarget as HTMLButtonElement).style.backgroundColor = "transparent"; }}>
