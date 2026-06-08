@@ -99,6 +99,151 @@ function StockBar({ inventario, minimo, maximo }: { inventario: number; minimo: 
   );
 }
 
+interface Movimiento {
+  tipo: "ingreso" | "egreso" | "ajuste";
+  cantidad: string;
+  fecha: string;
+  motivo: string;
+  responsable: string;
+}
+
+// ─── RegistrarMovimientoModal ─────────────────────────────────────────────────
+
+interface MovimientoModalProps {
+  insumo: Insumo;
+  establecimientoId: string;
+  onClose: () => void;
+  onCreated: () => void;
+}
+
+const MOV_EMPTY: Movimiento = {
+  tipo: "egreso",
+  cantidad: "",
+  fecha: new Date().toISOString().split("T")[0],
+  motivo: "",
+  responsable: "",
+};
+
+function RegistrarMovimientoModal({ insumo, establecimientoId, onClose, onCreated }: MovimientoModalProps) {
+  const [form, setForm] = useState<Movimiento>(MOV_EMPTY);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const { dragStyle, onDragStart } = useDraggable();
+
+  function set<K extends keyof Movimiento>(field: K) {
+    return (value: Movimiento[K]) => setForm((f) => ({ ...f, [field]: value }));
+  }
+
+  async function handleSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    const cant = parseFloat(form.cantidad);
+    if (isNaN(cant) || cant <= 0) { setError("La cantidad debe ser mayor a 0."); return; }
+    if (!form.responsable.trim()) { setError("Ingresá el responsable."); return; }
+
+    setLoading(true);
+    setError(null);
+    const supabase = createClient();
+    const { data: { user } } = await supabase.auth.getUser();
+
+    const { error: movError } = await supabase.from("insumos_movimientos").insert({
+      establecimiento_id: establecimientoId,
+      insumo_id: insumo.id,
+      tipo: form.tipo,
+      cantidad: cant,
+      fecha: form.fecha,
+      motivo: form.motivo.trim() || null,
+      responsable: form.responsable.trim(),
+      created_by: user?.id ?? null,
+    });
+    if (movError) { setError(movError.message); setLoading(false); return; }
+
+    const newInventario = form.tipo === "egreso"
+      ? Math.max(0, insumo.inventario - cant)
+      : insumo.inventario + cant;
+
+    await supabase.from("insumos").update({ inventario: newInventario }).eq("id", insumo.id);
+
+    onCreated();
+  }
+
+  const INPUT_STYLE = { border: "1.5px solid rgba(212,197,169,0.8)", backgroundColor: "var(--color-pampa)", color: "var(--color-tierra)" };
+  const onFocusIn = (e: React.FocusEvent<HTMLInputElement>) => { e.target.style.borderColor = "var(--color-cuero)"; e.target.style.boxShadow = "0 0 0 3px rgba(139,78,42,0.08)"; };
+  const onBlurIn = (e: React.FocusEvent<HTMLInputElement>) => { e.target.style.borderColor = "rgba(212,197,169,0.8)"; e.target.style.boxShadow = "none"; };
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-end md:items-center md:px-4" style={{ backgroundColor: "rgba(26,26,24,0.45)" }} onClick={onClose}>
+      <div className="w-full md:max-w-md rounded-t-2xl md:rounded-2xl p-6 flex flex-col gap-5 max-h-[90vh] overflow-y-auto"
+        style={{ backgroundColor: "#ffffff", boxShadow: "0 20px 60px rgba(26,26,24,0.18)", border: "1px solid rgba(212,197,169,0.5)", ...dragStyle }}
+        onClick={(e) => e.stopPropagation()}>
+        <div className="flex items-center justify-between" onMouseDown={onDragStart} style={{ cursor: "grab" }}>
+          <div>
+            <h2 className="text-lg font-semibold" style={{ color: "var(--color-tierra)", fontFamily: "var(--font-playfair), Georgia, serif" }}>Registrar Movimiento</h2>
+            <p className="text-xs mt-0.5" style={{ color: "rgba(26,26,24,0.45)" }}>{insumo.emoji} {insumo.nombre}</p>
+          </div>
+          <button onClick={onClose} onMouseDown={(e) => e.stopPropagation()} className="w-7 h-7 rounded-lg flex items-center justify-center" style={{ color: "rgba(26,26,24,0.4)" }}
+            onMouseEnter={(e) => { (e.currentTarget as HTMLButtonElement).style.backgroundColor = "rgba(212,197,169,0.3)"; }}
+            onMouseLeave={(e) => { (e.currentTarget as HTMLButtonElement).style.backgroundColor = "transparent"; }}>
+            <X size={16} />
+          </button>
+        </div>
+
+        <form onSubmit={handleSubmit} className="flex flex-col gap-4">
+          <div>
+            <label className="form-label">Tipo</label>
+            <div className="grid grid-cols-2 gap-2">
+              {([["ingreso", "#16a34a", "rgba(22,163,74,0.09)"], ["egreso", "#dc2626", "rgba(220,38,38,0.07)"]] as const).map(([t, color, bg]) => (
+                <button key={t} type="button" onClick={() => set("tipo")(t)}
+                  className="py-2 rounded-xl text-xs font-semibold capitalize transition-all"
+                  style={{ backgroundColor: form.tipo === t ? bg : "transparent", color: form.tipo === t ? color : "rgba(26,26,24,0.4)", border: `1.5px solid ${form.tipo === t ? color : "rgba(212,197,169,0.6)"}` }}>
+                  {t.charAt(0).toUpperCase() + t.slice(1)}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="form-label">Cantidad</label>
+              <input type="number" min="0.01" step="0.01" value={form.cantidad} onChange={(e) => set("cantidad")(e.target.value)} placeholder="0"
+                className="w-full px-4 py-3 rounded-xl text-sm outline-none" style={INPUT_STYLE} onFocus={onFocusIn} onBlur={onBlurIn} />
+            </div>
+            <div>
+              <label className="form-label">Fecha</label>
+              <input type="date" value={form.fecha} onChange={(e) => set("fecha")(e.target.value)}
+                className="w-full px-4 py-3 rounded-xl text-sm outline-none" style={INPUT_STYLE} onFocus={onFocusIn} onBlur={onBlurIn} />
+            </div>
+          </div>
+
+          <div>
+            <label className="form-label">Motivo <span style={{ color: "rgba(26,26,24,0.35)", fontWeight: 400 }}>(opc.)</span></label>
+            <input type="text" value={form.motivo} onChange={(e) => set("motivo")(e.target.value)} placeholder="Ej: Uso en Potrero Norte"
+              className="w-full px-4 py-3 rounded-xl text-sm outline-none" style={INPUT_STYLE} onFocus={onFocusIn} onBlur={onBlurIn} />
+          </div>
+
+          <div>
+            <label className="form-label">Responsable</label>
+            <input type="text" value={form.responsable} onChange={(e) => set("responsable")(e.target.value)} placeholder="Nombre del responsable"
+              className="w-full px-4 py-3 rounded-xl text-sm outline-none" style={INPUT_STYLE} onFocus={onFocusIn} onBlur={onBlurIn} />
+          </div>
+
+          {error && (
+            <div className="flex items-center gap-2 px-4 py-3 rounded-xl text-sm" style={{ backgroundColor: "rgba(220,38,38,0.06)", color: "#dc2626", border: "1px solid rgba(220,38,38,0.15)" }}>
+              <AlertCircle size={15} className="shrink-0" />{error}
+            </div>
+          )}
+
+          <div className="flex gap-3 pt-1">
+            <button type="button" onClick={onClose} className="flex-1 py-2.5 rounded-xl text-sm font-semibold" style={{ border: "1.5px solid rgba(212,197,169,0.8)", color: "var(--color-tierra)", backgroundColor: "transparent" }}>Cancelar</button>
+            <button type="submit" disabled={loading} className="flex-1 py-2.5 rounded-xl text-sm font-semibold text-white flex items-center justify-center gap-2" style={{ backgroundColor: "var(--color-campo)", opacity: loading ? 0.7 : 1 }}>
+              {loading ? <><Loader2 size={15} className="animate-spin" />Guardando...</> : "Guardar"}
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  );
+}
+
 // ─── Modal ────────────────────────────────────────────────────────────────────
 
 interface ModalProps {
@@ -261,6 +406,7 @@ export default function InsumosPage() {
   const [profilesMap, setProfilesMap] = useState<Record<string, string>>({});
   const [auditId, setAuditId] = useState<string | null>(null);
   const [openMenuId, setOpenMenuId] = useState<string | null>(null);
+  const [movimientoInsumo, setMovimientoInsumo] = useState<Insumo | null>(null);
 
   useEffect(() => {
     if (!openMenuId) return;
@@ -346,6 +492,14 @@ export default function InsumosPage() {
     <>
       {showModal && establecimientoId && (
         <NuevoInsumoModal establecimientoId={establecimientoId} onClose={() => setShowModal(false)} onCreated={fetchData} />
+      )}
+      {movimientoInsumo && establecimientoId && (
+        <RegistrarMovimientoModal
+          insumo={movimientoInsumo}
+          establecimientoId={establecimientoId}
+          onClose={() => setMovimientoInsumo(null)}
+          onCreated={() => { setMovimientoInsumo(null); fetchData(); }}
+        />
       )}
       {auditId && <AuditDrawer tabla="insumos" registroId={auditId} onClose={() => setAuditId(null)} />}
       {showImportModal && (
@@ -514,7 +668,13 @@ export default function InsumosPage() {
                                 </button>
                                 {openMenuId === ins.id && (
                                   <div className="absolute right-0 top-full mt-1 z-20 rounded-xl overflow-hidden py-1"
-                                    style={{ backgroundColor: "#ffffff", boxShadow: "0 4px 20px rgba(26,26,24,0.14)", border: "1px solid rgba(212,197,169,0.5)", minWidth: 140 }}>
+                                    style={{ backgroundColor: "#ffffff", boxShadow: "0 4px 20px rgba(26,26,24,0.14)", border: "1px solid rgba(212,197,169,0.5)", minWidth: 168 }}>
+                                    <button onClick={(e) => { e.stopPropagation(); setMovimientoInsumo(ins); setOpenMenuId(null); }}
+                                      className="w-full px-4 py-2 text-sm text-left" style={{ color: "var(--color-tierra)" }}
+                                      onMouseEnter={(e) => { (e.currentTarget as HTMLButtonElement).style.backgroundColor = "rgba(212,197,169,0.2)"; }}
+                                      onMouseLeave={(e) => { (e.currentTarget as HTMLButtonElement).style.backgroundColor = "transparent"; }}>
+                                      Registrar movimiento
+                                    </button>
                                     <button onClick={(e) => { e.stopPropagation(); setAuditId(ins.id); setOpenMenuId(null); }}
                                       className="w-full px-4 py-2 text-sm text-left flex items-center gap-2" style={{ color: "rgba(26,26,24,0.6)" }}
                                       onMouseEnter={(e) => { (e.currentTarget as HTMLButtonElement).style.backgroundColor = "rgba(212,197,169,0.2)"; }}
