@@ -7,6 +7,7 @@ import { useDraggable } from "@/lib/useDraggable";
 import { AuditDrawer } from "@/components/audit-drawer";
 import { exportToExcel, todayISO, slugifyName } from "@/lib/exportExcel";
 import { ImportModal } from "@/components/import-modal";
+import { logAudit } from "@/lib/auditLog";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -163,6 +164,17 @@ function RegistrarMovimientoModal({ insumo, establecimientoId, onClose, onCreate
 
     await supabase.from("insumos").update({ inventario: newInventario }).eq("id", insumo.id);
 
+    if (user) {
+      const { data: profile } = await supabase.from("profiles").select("full_name, email").eq("id", user.id).single();
+      await logAudit({
+        supabase, tabla: "insumos", registroId: insumo.id,
+        datosAnteriores: { inventario: insumo.inventario },
+        datosNuevos: { inventario: newInventario },
+        userId: user.id,
+        userName: profile?.full_name || profile?.email || user.email || "Usuario",
+      });
+    }
+
     onCreated();
   }
 
@@ -224,6 +236,138 @@ function RegistrarMovimientoModal({ insumo, establecimientoId, onClose, onCreate
             <label className="form-label">Responsable</label>
             <input type="text" value={form.responsable} onChange={(e) => set("responsable")(e.target.value)} placeholder="Nombre del responsable"
               className="w-full px-4 py-3 rounded-xl text-sm outline-none" style={INPUT_STYLE} onFocus={onFocusIn} onBlur={onBlurIn} />
+          </div>
+
+          {error && (
+            <div className="flex items-center gap-2 px-4 py-3 rounded-xl text-sm" style={{ backgroundColor: "rgba(220,38,38,0.06)", color: "#dc2626", border: "1px solid rgba(220,38,38,0.15)" }}>
+              <AlertCircle size={15} className="shrink-0" />{error}
+            </div>
+          )}
+
+          <div className="flex gap-3 pt-1">
+            <button type="button" onClick={onClose} className="flex-1 py-2.5 rounded-xl text-sm font-semibold" style={{ border: "1.5px solid rgba(212,197,169,0.8)", color: "var(--color-tierra)", backgroundColor: "transparent" }}>Cancelar</button>
+            <button type="submit" disabled={loading} className="flex-1 py-2.5 rounded-xl text-sm font-semibold text-white flex items-center justify-center gap-2" style={{ backgroundColor: "var(--color-campo)", opacity: loading ? 0.7 : 1 }}>
+              {loading ? <><Loader2 size={15} className="animate-spin" />Guardando...</> : "Guardar"}
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  );
+}
+
+// ─── EditarInsumoModal ────────────────────────────────────────────────────────
+
+interface EditarInsumoModalProps {
+  editData: Insumo;
+  establecimientoId: string;
+  onClose: () => void;
+  onCreated: () => void;
+}
+
+function EditarInsumoModal({ editData, onClose, onCreated }: EditarInsumoModalProps) {
+  const [form, setForm] = useState({
+    nombre: editData.nombre,
+    categoria: editData.categoria,
+    unidad: editData.unidad,
+    minimo: String(editData.minimo),
+    emoji: editData.emoji,
+  });
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const { dragStyle, onDragStart } = useDraggable();
+
+  function set(field: keyof typeof form) {
+    return (value: string) => setForm((f) => ({ ...f, [field]: value }));
+  }
+
+  const emojis = EMOJI_OPTIONS[form.categoria as Categoria] ?? ["📦"];
+
+  async function handleSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    if (!form.nombre.trim() || !form.unidad.trim()) { setError("Completá nombre y unidad."); return; }
+
+    setLoading(true);
+    setError(null);
+    const supabase = createClient();
+    const { error: dbError } = await supabase.from("insumos").update({
+      nombre: form.nombre.trim(),
+      categoria: form.categoria,
+      unidad: form.unidad.trim(),
+      minimo: parseFloat(form.minimo) || 0,
+      emoji: form.emoji,
+    }).eq("id", editData.id);
+    if (dbError) { setError(dbError.message); setLoading(false); return; }
+    onCreated();
+    onClose();
+  }
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-end md:items-center md:px-4" style={{ backgroundColor: "rgba(26,26,24,0.45)" }} onClick={onClose}>
+      <div className="w-full md:max-w-md rounded-t-2xl md:rounded-2xl p-6 flex flex-col gap-5 max-h-[90vh] overflow-y-auto"
+        style={{ backgroundColor: "#ffffff", boxShadow: "0 20px 60px rgba(26,26,24,0.18)", border: "1px solid rgba(212,197,169,0.5)", ...dragStyle }}
+        onClick={(e) => e.stopPropagation()}>
+        <div className="flex items-center justify-between" onMouseDown={onDragStart} style={{ cursor: "grab" }}>
+          <h2 className="text-lg font-semibold" style={{ color: "var(--color-tierra)", fontFamily: "var(--font-playfair), Georgia, serif" }}>Editar Insumo</h2>
+          <button onClick={onClose} onMouseDown={(e) => e.stopPropagation()} className="w-7 h-7 rounded-lg flex items-center justify-center" style={{ color: "rgba(26,26,24,0.4)" }}
+            onMouseEnter={(e) => { (e.currentTarget as HTMLButtonElement).style.backgroundColor = "rgba(212,197,169,0.3)"; }}
+            onMouseLeave={(e) => { (e.currentTarget as HTMLButtonElement).style.backgroundColor = "transparent"; }}>
+            <X size={16} />
+          </button>
+        </div>
+
+        <form onSubmit={handleSubmit} className="flex flex-col gap-4">
+          <div>
+            <label className="form-label">Categoría</label>
+            <select value={form.categoria} onChange={(e) => { set("categoria")(e.target.value); set("emoji")(EMOJI_OPTIONS[e.target.value as Categoria]?.[0] ?? "📦"); }}
+              className="w-full px-4 py-3 rounded-xl text-sm outline-none"
+              style={{ border: "1.5px solid rgba(212,197,169,0.8)", backgroundColor: "var(--color-pampa)", color: "var(--color-tierra)" }}>
+              {CATEGORIAS.map((c) => <option key={c}>{c}</option>)}
+            </select>
+          </div>
+
+          <div>
+            <label className="form-label">Nombre</label>
+            <input type="text" value={form.nombre} onChange={(e) => set("nombre")(e.target.value)} placeholder="Ej: Sal mineral"
+              className="w-full px-4 py-3 rounded-xl text-sm outline-none"
+              style={{ border: "1.5px solid rgba(212,197,169,0.8)", backgroundColor: "var(--color-pampa)", color: "var(--color-tierra)" }}
+              onFocus={(e) => { e.target.style.borderColor = "var(--color-cuero)"; e.target.style.boxShadow = "0 0 0 3px rgba(139,78,42,0.08)"; }}
+              onBlur={(e) => { e.target.style.borderColor = "rgba(212,197,169,0.8)"; e.target.style.boxShadow = "none"; }}
+            />
+          </div>
+
+          <div>
+            <label className="form-label">Ícono</label>
+            <div className="flex gap-2">
+              {emojis.map((em) => (
+                <button key={em} type="button" onClick={() => set("emoji")(em)}
+                  className="w-10 h-10 rounded-xl flex items-center justify-center text-xl transition-all"
+                  style={{ border: `2px solid ${form.emoji === em ? "var(--color-campo)" : "rgba(212,197,169,0.5)"}`, backgroundColor: form.emoji === em ? "rgba(58,74,50,0.07)" : "transparent" }}>
+                  {em}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="form-label">Unidad</label>
+              <input type="text" value={form.unidad} onChange={(e) => set("unidad")(e.target.value)} placeholder="kg, L, u, rol..."
+                className="w-full px-4 py-3 rounded-xl text-sm outline-none"
+                style={{ border: "1.5px solid rgba(212,197,169,0.8)", backgroundColor: "var(--color-pampa)", color: "var(--color-tierra)" }}
+                onFocus={(e) => { e.target.style.borderColor = "var(--color-cuero)"; e.target.style.boxShadow = "0 0 0 3px rgba(139,78,42,0.08)"; }}
+                onBlur={(e) => { e.target.style.borderColor = "rgba(212,197,169,0.8)"; e.target.style.boxShadow = "none"; }}
+              />
+            </div>
+            <div>
+              <label className="form-label">Stock mínimo <span style={{ color: "rgba(26,26,24,0.35)", fontWeight: 400 }}>(alerta)</span></label>
+              <input type="number" min="0" step="0.01" value={form.minimo} onChange={(e) => set("minimo")(e.target.value)} placeholder="0"
+                className="w-full px-4 py-3 rounded-xl text-sm outline-none"
+                style={{ border: "1.5px solid rgba(212,197,169,0.8)", backgroundColor: "var(--color-pampa)", color: "var(--color-tierra)" }}
+                onFocus={(e) => { e.target.style.borderColor = "var(--color-cuero)"; e.target.style.boxShadow = "0 0 0 3px rgba(139,78,42,0.08)"; }}
+                onBlur={(e) => { e.target.style.borderColor = "rgba(212,197,169,0.8)"; e.target.style.boxShadow = "none"; }}
+              />
+            </div>
           </div>
 
           {error && (
@@ -407,6 +551,7 @@ export default function InsumosPage() {
   const [auditId, setAuditId] = useState<string | null>(null);
   const [openMenuId, setOpenMenuId] = useState<string | null>(null);
   const [movimientoInsumo, setMovimientoInsumo] = useState<Insumo | null>(null);
+  const [editInsumo, setEditInsumo] = useState<Insumo | null>(null);
 
   useEffect(() => {
     if (!openMenuId) return;
@@ -443,6 +588,17 @@ export default function InsumosPage() {
     const newVal = Math.max(0, insumo.inventario + delta);
     const supabase = createClient();
     await supabase.from("insumos").update({ inventario: newVal }).eq("id", insumo.id);
+    const { data: { user } } = await supabase.auth.getUser();
+    if (user) {
+      const { data: profile } = await supabase.from("profiles").select("full_name, email").eq("id", user.id).single();
+      await logAudit({
+        supabase, tabla: "insumos", registroId: insumo.id,
+        datosAnteriores: { inventario: insumo.inventario },
+        datosNuevos: { inventario: newVal },
+        userId: user.id,
+        userName: profile?.full_name || profile?.email || user.email || "Usuario",
+      });
+    }
     setInsumos((prev) => prev.map((i) => i.id === insumo.id ? { ...i, inventario: newVal } : i));
     setAjustes((prev) => ({ ...prev, [insumo.id]: 0 }));
   }
@@ -499,6 +655,14 @@ export default function InsumosPage() {
           establecimientoId={establecimientoId}
           onClose={() => setMovimientoInsumo(null)}
           onCreated={() => { setMovimientoInsumo(null); fetchData(); }}
+        />
+      )}
+      {editInsumo && establecimientoId && (
+        <EditarInsumoModal
+          editData={editInsumo}
+          establecimientoId={establecimientoId}
+          onClose={() => setEditInsumo(null)}
+          onCreated={() => { setEditInsumo(null); fetchData(); }}
         />
       )}
       {auditId && <AuditDrawer tabla="insumos" registroId={auditId} onClose={() => setAuditId(null)} />}
@@ -669,6 +833,12 @@ export default function InsumosPage() {
                                 {openMenuId === ins.id && (
                                   <div className="absolute right-0 top-full mt-1 z-20 rounded-xl overflow-hidden py-1"
                                     style={{ backgroundColor: "#ffffff", boxShadow: "0 4px 20px rgba(26,26,24,0.14)", border: "1px solid rgba(212,197,169,0.5)", minWidth: 168 }}>
+                                    <button onClick={(e) => { e.stopPropagation(); setEditInsumo(ins); setOpenMenuId(null); }}
+                                      className="w-full px-4 py-2 text-sm text-left" style={{ color: "var(--color-tierra)" }}
+                                      onMouseEnter={(e) => { (e.currentTarget as HTMLButtonElement).style.backgroundColor = "rgba(212,197,169,0.2)"; }}
+                                      onMouseLeave={(e) => { (e.currentTarget as HTMLButtonElement).style.backgroundColor = "transparent"; }}>
+                                      Editar
+                                    </button>
                                     <button onClick={(e) => { e.stopPropagation(); setMovimientoInsumo(ins); setOpenMenuId(null); }}
                                       className="w-full px-4 py-2 text-sm text-left" style={{ color: "var(--color-tierra)" }}
                                       onMouseEnter={(e) => { (e.currentTarget as HTMLButtonElement).style.backgroundColor = "rgba(212,197,169,0.2)"; }}
