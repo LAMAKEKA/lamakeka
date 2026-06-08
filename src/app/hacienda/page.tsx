@@ -584,8 +584,6 @@ export default function HaciendaPage() {
     if (seccion === "prenez" && establecimientoId && !prenezLoaded) loadPrenezData();
   }, [seccion, establecimientoId, prenezLoaded, loadPrenezData]);
 
-  const potreros = [...new Set(animales.map((a) => a.potrero))].sort();
-  const potrerosMerged = [...new Set([...potrerosFromDB, ...potreros])].sort();
 
   const baseData = activeTab === "mis-datos"
     ? animales.filter((r) => r.responsable.toLowerCase().includes(userName.split(" ")[0].toLowerCase()))
@@ -657,10 +655,10 @@ export default function HaciendaPage() {
         <NuevoAnimalModal establecimientoId={establecimientoId}
           onClose={() => { setShowModal(false); setEditAnimal(null); }}
           onCreated={fetchData} editData={editAnimal ?? undefined}
-          potreros={potrerosMerged} />
+          potreros={potrerosFromDB} />
       )}
       {showModalPrenez && establecimientoId && (
-        <NuevoDiagnosticoModal establecimientoId={establecimientoId} potreros={potreros}
+        <NuevoDiagnosticoModal establecimientoId={establecimientoId} potreros={potrerosFromDB}
           onClose={() => setShowModalPrenez(false)}
           onCreated={() => setPrenezLoaded(false)} />
       )}
@@ -784,7 +782,7 @@ export default function HaciendaPage() {
                       <select value={filtros.potrero} onChange={(e) => setFiltros((f) => ({ ...f, potrero: e.target.value }))}
                         className="w-full px-3 py-2.5 rounded-xl text-sm outline-none" style={SELECT_STYLE}>
                         <option value="">Todos</option>
-                        {potreros.map((p) => <option key={p} value={p}>{p}</option>)}
+                        {potrerosFromDB.map((p) => <option key={p} value={p}>{p}</option>)}
                       </select>
                     </div>
                     <div>
