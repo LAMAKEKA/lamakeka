@@ -14,6 +14,7 @@ import {
   PieChart,
   MessageCircle,
   LogOut,
+  ScanLine,
 } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 
@@ -25,6 +26,7 @@ const navItems = [
   { href: "/tareas", label: "Tareas", icon: CheckSquare },
   { href: "/finanzas", label: "Finanzas", icon: BarChart2 },
   { href: "/reportes", label: "Reportes", icon: PieChart },
+  { href: "/manga", label: "Manga", icon: ScanLine },
 ];
 
 const secondaryItems = [
