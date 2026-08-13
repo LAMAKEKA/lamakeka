@@ -30,7 +30,7 @@ export async function proxy(request: NextRequest) {
   } = await supabase.auth.getUser();
 
   const { pathname } = request.nextUrl;
-  const publicPaths = ["/login", "/register"];
+  const publicPaths = ["/login", "/register", "/api/ping-db"];
   const isPublicPath = publicPaths.includes(pathname);
 
   if (!user && !isPublicPath) {
