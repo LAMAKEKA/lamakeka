@@ -228,11 +228,12 @@ function NuevoGastoModal({ establecimientoId, onClose, onCreated }: ModalProps) 
 function DonutChart({ categorias }: { categorias: { nombre: string; color: string; porcentaje: number }[] }) {
   const r = 60; const cx = 84; const cy = 84;
   const circum = 2 * Math.PI * r;
-  let offset = 0;
-  const slices = categorias.map((cat) => {
+  const slices = categorias.map((cat, i) => {
     const dashArray = (cat.porcentaje / 100) * circum;
+    const offset = categorias
+      .slice(0, i)
+      .reduce((s, c) => s + (c.porcentaje / 100) * circum, 0);
     const dashOffset = circum - offset;
-    offset += dashArray;
     return { ...cat, dashArray, dashOffset };
   });
   return (

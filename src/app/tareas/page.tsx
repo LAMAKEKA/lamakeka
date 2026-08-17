@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
-import { Plus, Check, ClipboardCheck, X, Loader2, AlertCircle, Download, MoreHorizontal, Clock } from "lucide-react";
+import { Plus, Check, ClipboardCheck, X, Loader2, AlertCircle, Download, Clock } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { useDraggable } from "@/lib/useDraggable";
 import { AuditDrawer } from "@/components/audit-drawer";
