@@ -23,22 +23,25 @@ interface Gasto {
 }
 
 const CATEGORIAS_GASTO = [
-  "Alimentación", "Sanidad", "Combustible", "Administración",
-  "Estructuras", "Mano de obra", "Otros",
+  "Alimentación", "Sanidad", "Alimentación aves", "Sanidad aves",
+  "Combustible", "Administración", "Estructuras", "Mano de obra", "Otros",
 ];
 
 const CATEGORIAS_INGRESO = [
-  "Venta de hacienda", "Arrendamiento", "Subsidios", "Servicios", "Otros",
+  "Venta de hacienda", "Venta de huevos", "Arrendamiento", "Subsidios", "Servicios", "Otros",
 ];
 
 const CAT_COLORS: Record<string, string> = {
   "Alimentación":       "#16a34a",
   "Sanidad":            "#2563eb",
+  "Alimentación aves":  "#65a30d",
+  "Sanidad aves":       "#0284c7",
   "Combustible":        "#d97706",
   "Administración":     "var(--color-cuero)",
   "Estructuras":        "#7c3aed",
   "Mano de obra":       "#0891b2",
   "Venta de hacienda":  "#16a34a",
+  "Venta de huevos":    "#ca8a04",
   "Arrendamiento":      "#2563eb",
   "Otros":              "rgba(26,26,24,0.4)",
 };
