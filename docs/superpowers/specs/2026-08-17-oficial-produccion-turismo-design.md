@@ -116,5 +116,9 @@ Cada fase se especifica y planifica por separado (plan propio). Este documento e
 ## Notas pendientes (no bloquean)
 
 - Confirmar el **formato exacto del TXT** de SIGSA contra el Manual oficial antes de cerrar el
-  exportador (campo por campo y separadores).
+  exportador (campo por campo y separadores). El TXT está marcado "beta" en `senasaExport.ts`.
 - Confirmar el **formato del RENSPA** para validación ligera (se guarda como texto).
+- **Edición offline (diferida):** en la Fase 1, la edición de un animal (y el guardado del RENSPA)
+  requiere conexión; si falla, se muestra un error explícito (no hay pérdida silenciosa). El cache
+  offline ya incluye los campos nuevos para la vista. Queda pendiente una cola de ediciones offline
+  (como la que ya existe para escaneos) para una fase futura.
