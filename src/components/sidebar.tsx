@@ -7,6 +7,7 @@ import { usePathname, useRouter } from "next/navigation";
 import {
   LayoutDashboard,
   Beef,
+  Egg,
   Map,
   Package,
   CheckSquare,
@@ -22,6 +23,7 @@ import { createClient } from "@/lib/supabase/client";
 const navItems = [
   { href: "/", label: "Dashboard", icon: LayoutDashboard },
   { href: "/hacienda", label: "Hacienda", icon: Beef },
+  { href: "/produccion", label: "Producción", icon: Egg },
   { href: "/potreros", label: "Potreros", icon: Map },
   { href: "/insumos", label: "Insumos", icon: Package },
   { href: "/tareas", label: "Tareas", icon: CheckSquare },
@@ -104,7 +106,7 @@ export function Sidebar({ onClose }: SidebarProps) {
       {/* Navigation */}
       <nav className="flex-1 px-3 space-y-0.5 overflow-y-auto">
         {navItems.map(({ href, label, icon: Icon }) => {
-          const isActive = pathname === href;
+          const isActive = pathname === href || (href !== "/" && pathname.startsWith(href));
           return (
             <Link
               key={href}
@@ -148,7 +150,7 @@ export function Sidebar({ onClose }: SidebarProps) {
       {/* Secondary nav */}
       <div className="px-3 pb-2 space-y-0.5">
         {secondaryItems.map(({ href, label, icon: Icon, badge }) => {
-          const isActive = pathname === href;
+          const isActive = pathname === href || (href !== "/" && pathname.startsWith(href));
           return (
             <Link
               key={href}

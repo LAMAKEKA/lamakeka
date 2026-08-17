@@ -1,8 +1,15 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
-import { Loader2, AlertCircle, TrendingUp, TrendingDown, DollarSign, CheckCircle2, Clock, AlertTriangle, Beef } from "lucide-react";
+import { Loader2, AlertCircle, TrendingUp, TrendingDown, DollarSign, CheckCircle2, Clock, AlertTriangle, Beef, Egg } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
+import {
+  calcularMortalidad,
+  calcularPlantelInicial,
+  calcularPostura,
+  daysInclusive,
+  maplesToHuevos,
+} from "@/lib/produccion";
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer,
   PieChart, Pie, Cell,
@@ -46,10 +53,11 @@ interface Tarea {
   completada: boolean;
 }
 
-type Tab = "hacienda" | "finanzas" | "insumos" | "tareas";
+type Tab = "hacienda" | "finanzas" | "insumos" | "tareas" | "produccion";
 
 const TABS: { key: Tab; label: string }[] = [
   { key: "hacienda", label: "Hacienda" },
+  { key: "produccion", label: "Producción" },
   { key: "finanzas", label: "Finanzas" },
   { key: "insumos",  label: "Insumos"  },
   { key: "tareas",   label: "Tareas"   },
@@ -69,11 +77,14 @@ const CAT_PIE_COLORS: Record<string, string> = {
   Toros:       "#dc2626",
   Alimentación:       "#16a34a",
   Sanidad:            "#2563eb",
+  "Alimentación aves":  "#65a30d",
+  "Sanidad aves":       "#0284c7",
   Combustible:        "#d97706",
   Administración:     CUERO,
   Estructuras:        "#7c3aed",
   "Mano de obra":     "#0891b2",
   "Venta de hacienda":"#16a34a",
+  "Venta de huevos":    "#ca8a04",
   Arrendamiento:      "#2563eb",
   Otros:              "#9ca3af",
 };
@@ -659,6 +670,50 @@ function EmptyState({ label }: { label: string }) {
 
 // ─── Page ─────────────────────────────────────────────────────────────────────
 
+interface LoteReporte { id: string; nombre: string; cantidad: number }
+interface ProdReporte { lote_id: string; fecha: string; maples: number; merma: number }
+interface MovReporte { lote_id: string; tipo: string; cantidad: number; fecha: string }
+
+function TabProduccion({
+  lotes, registros, movimientos, loading, desde, hasta,
+}: {
+  lotes: LoteReporte[];
+  registros: ProdReporte[];
+  movimientos: MovReporte[];
+  loading: boolean;
+  desde: string;
+  hasta: string;
+}) {
+  if (loading) return <LoadingState />;
+  if (lotes.length === 0 && registros.length === 0) return <EmptyState label="Sin datos de producción" />;
+
+  const dias = daysInclusive(desde, hasta);
+  const plantel = lotes.reduce((s, l) => s + l.cantidad, 0);
+  const maples = registros.reduce((s, r) => s + r.maples, 0);
+  const merma = registros.reduce((s, r) => s + r.merma, 0);
+  const puestos = maplesToHuevos(maples) + merma;
+  const altas = movimientos.filter((m) => m.tipo === "alta").reduce((s, m) => s + m.cantidad, 0);
+  const muertes = movimientos.filter((m) => m.tipo === "muerte").reduce((s, m) => s + m.cantidad, 0);
+  const ventas = movimientos.filter((m) => m.tipo === "venta").reduce((s, m) => s + m.cantidad, 0);
+  const inicial = calcularPlantelInicial(plantel, altas, muertes, ventas);
+  const postura = calcularPostura(puestos, plantel, dias);
+  const mortalidad = calcularMortalidad(muertes, inicial);
+
+  function fmt(n: number | null, suffix = "") {
+    if (n === null) return "—";
+    return `${n.toLocaleString("es-AR", { maximumFractionDigits: 2 })}${suffix}`;
+  }
+
+  return (
+    <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+      <MetricCard label="Maples" value={String(maples)} icon={Egg} color={CAMPO} />
+      <MetricCard label="Merma" value={String(merma)} sub="huevos" icon={Egg} color={CUERO} />
+      <MetricCard label="Postura" value={fmt(postura)} sub="huevos / gallina / día" icon={TrendingUp} color="#16a34a" />
+      <MetricCard label="Mortalidad" value={fmt(mortalidad === null ? null : mortalidad * 100, "%")} icon={TrendingDown} color="#dc2626" />
+    </div>
+  );
+}
+
 export default function ReportesPage() {
   const [activeTab, setActiveTab] = useState<Tab>("hacienda");
   const [establecimientoId, setEstablecimientoId] = useState<string | null>(null);
@@ -671,6 +726,11 @@ export default function ReportesPage() {
   const [gastos, setGastos]       = useState<Gasto[]>([]);
   const [insumos, setInsumos]     = useState<Insumo[]>([]);
   const [tareas, setTareas]       = useState<Tarea[]>([]);
+  const [lotesP, setLotesP] = useState<LoteReporte[]>([]);
+  const [prodP, setProdP] = useState<ProdReporte[]>([]);
+  const [movP, setMovP] = useState<MovReporte[]>([]);
+  const [loadingP, setLoadingP] = useState(false);
+  const [loadedP, setLoadedP] = useState(false);
 
   // Loading per tab
   const [loadingH, setLoadingH] = useState(false);
@@ -694,6 +754,7 @@ export default function ReportesPage() {
   useEffect(() => {
     setLoadedH(false);
     setLoadedF(false);
+    setLoadedP(false);
   }, [dateRange]);
 
   // Get establecimiento
@@ -772,6 +833,29 @@ export default function ReportesPage() {
     setLoadingT(false);
   }, [loadedT]);
 
+  const loadProduccion = useCallback(async (estId: string) => {
+    if (loadedP) return;
+    setLoadingP(true);
+    const supabase = createClient();
+    const [lotesRes, prodRes, movRes] = await Promise.all([
+      supabase.from("lotes_gallinas").select("id, nombre, cantidad")
+        .eq("establecimiento_id", estId).is("deleted_at", null),
+      supabase.from("produccion_huevos").select("lote_id, fecha, maples, merma")
+        .eq("establecimiento_id", estId)
+        .gte("fecha", dateRange.desde)
+        .lte("fecha", dateRange.hasta),
+      supabase.from("movimientos_gallinas").select("lote_id, tipo, cantidad, fecha")
+        .eq("establecimiento_id", estId)
+        .gte("fecha", dateRange.desde)
+        .lte("fecha", dateRange.hasta),
+    ]);
+    setLotesP(lotesRes.data ?? []);
+    setProdP(prodRes.data ?? []);
+    setMovP(movRes.data ?? []);
+    setLoadedP(true);
+    setLoadingP(false);
+  }, [loadedP, dateRange]);
+
   // Load on tab change
   useEffect(() => {
     if (!establecimientoId) return;
@@ -779,7 +863,8 @@ export default function ReportesPage() {
     if (activeTab === "finanzas") loadFinanzas(establecimientoId);
     if (activeTab === "insumos")  loadInsumos(establecimientoId);
     if (activeTab === "tareas")   loadTareas(establecimientoId);
-  }, [activeTab, establecimientoId, loadHacienda, loadFinanzas, loadInsumos, loadTareas]);
+    if (activeTab === "produccion") loadProduccion(establecimientoId);
+  }, [activeTab, establecimientoId, loadHacienda, loadFinanzas, loadInsumos, loadTareas, loadProduccion]);
 
   // Load hacienda on mount
   useEffect(() => {
@@ -870,6 +955,16 @@ export default function ReportesPage() {
 
       {/* Tab content */}
       {activeTab === "hacienda" && <TabHacienda animales={animales} prenezData={prenezData} loading={loadingH} />}
+      {activeTab === "produccion" && (
+        <TabProduccion
+          lotes={lotesP}
+          registros={prodP}
+          movimientos={movP}
+          loading={loadingP}
+          desde={dateRange.desde}
+          hasta={dateRange.hasta}
+        />
+      )}
       {activeTab === "finanzas" && <TabFinanzas gastos={gastos} loading={loadingF} />}
       {activeTab === "insumos"  && <TabInsumos insumos={insumos} loading={loadingI} />}
       {activeTab === "tareas"   && <TabTareas tareas={tareas} loading={loadingT} />}
