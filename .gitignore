@@ -44,3 +44,6 @@ next-env.d.ts
 # supabase backups / exports (contienen datos sensibles)
 *.backup.gz
 *.storage.zip
+
+# git worktrees
+.worktrees/
