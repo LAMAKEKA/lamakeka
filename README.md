@@ -1,3 +1,8 @@
+# lamakeka
+
+> **Repo remoto:** `https://github.com/LA-MAKEKA/lamakeka.git` (org `LA-MAKEKA`, con guion; repo privado).
+> No usar `LAMAKEKA/lamakeka` (sin guion), no existe.
+
 This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
 
 ## Getting Started
