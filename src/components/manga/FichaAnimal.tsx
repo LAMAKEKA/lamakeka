@@ -1,6 +1,6 @@
 "use client";
 
-import { Loader2, AlertCircle, Calendar, Tag, Beef, History } from "lucide-react";
+import { Loader2, AlertCircle, Calendar, Tag, Beef, History, Pencil } from "lucide-react";
 import type { MangaAnimal, RegistroManga } from "@/hooks/useSupabaseManga";
 import type { MangaCampo } from "@/hooks/useCamposConfig";
 
@@ -10,6 +10,7 @@ interface FichaAnimalProps {
   registros: RegistroManga[];
   loading: boolean;
   campos: MangaCampo[];
+  onEdit?: () => void;
 }
 
 function InfoChip({ label, value }: { label: string; value: string | null | undefined }) {
@@ -38,7 +39,7 @@ function formatDate(iso: string) {
   });
 }
 
-export function FichaAnimal({ eid, animal, registros, loading, campos }: FichaAnimalProps) {
+export function FichaAnimal({ eid, animal, registros, loading, campos, onEdit }: FichaAnimalProps) {
   if (!eid) {
     return (
       <div
@@ -89,69 +90,52 @@ export function FichaAnimal({ eid, animal, registros, loading, campos }: FichaAn
         <div>
           <div className="flex items-center gap-2">
             <Tag size={14} style={{ color: "var(--color-campo)" }} />
-            <p
-              className="text-xs font-mono font-semibold"
-              style={{ color: "rgba(26,26,24,0.5)" }}
-            >
+            <p className="text-xs font-mono font-semibold" style={{ color: "rgba(26,26,24,0.5)" }}>
               EID {eid}
             </p>
           </div>
           {animal ? (
-            <h2
-              className="text-xl font-bold mt-1"
-              style={{
-                color: "var(--color-tierra)",
-                fontFamily: "var(--font-playfair), Georgia, serif",
-              }}
-            >
+            <h2 className="text-xl font-bold mt-1" style={{ color: "var(--color-tierra)", fontFamily: "var(--font-playfair), Georgia, serif" }}>
               {animal.vid ?? "Sin VID"}{" "}
-              <span
-                className="text-sm font-normal"
-                style={{ color: "rgba(26,26,24,0.4)" }}
-              >
+              <span className="text-sm font-normal" style={{ color: "rgba(26,26,24,0.4)" }}>
                 {animal.raza ?? ""}
               </span>
             </h2>
           ) : (
             <div className="flex items-center gap-1.5 mt-1">
               <AlertCircle size={14} style={{ color: "#d97706" }} />
-              <p className="text-sm" style={{ color: "#d97706" }}>
-                Animal no registrado en el sistema
-              </p>
+              <p className="text-sm" style={{ color: "#d97706" }}>Animal no registrado en el sistema</p>
             </div>
           )}
         </div>
 
-        {animal && (animal.sexo || animal.lote) && (
-          <div className="flex gap-1.5">
-            {animal.sexo && (
-              <span
-                className="text-[11px] font-semibold px-2 py-0.5 rounded-full"
-                style={{
-                  backgroundColor:
-                    animal.sexo.toLowerCase() === "macho"
-                      ? "rgba(37,99,235,0.08)"
-                      : "rgba(217,119,6,0.08)",
-                  color:
-                    animal.sexo.toLowerCase() === "macho" ? "#2563eb" : "#d97706",
-                }}
-              >
-                {animal.sexo}
-              </span>
-            )}
-            {animal.lote && (
-              <span
-                className="text-[11px] font-semibold px-2 py-0.5 rounded-full"
-                style={{
-                  backgroundColor: "rgba(58,74,50,0.1)",
-                  color: "var(--color-campo)",
-                }}
-              >
-                {animal.lote}
-              </span>
-            )}
-          </div>
-        )}
+        <div className="flex items-center gap-1.5 shrink-0">
+          {animal && onEdit && (
+            <button
+              onClick={onEdit}
+              className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-semibold transition-all"
+              style={{ color: "var(--color-campo)", border: "1px solid rgba(58,74,50,0.3)", backgroundColor: "rgba(58,74,50,0.04)" }}
+            >
+              <Pencil size={12} /> Editar
+            </button>
+          )}
+          {animal && (animal.sexo || animal.lote) && (
+            <div className="flex gap-1.5">
+              {animal.sexo && (
+                <span className="text-[11px] font-semibold px-2 py-0.5 rounded-full"
+                  style={{ backgroundColor: animal.sexo.toLowerCase() === "macho" ? "rgba(37,99,235,0.08)" : "rgba(217,119,6,0.08)", color: animal.sexo.toLowerCase() === "macho" ? "#2563eb" : "#d97706" }}>
+                  {animal.sexo}
+                </span>
+              )}
+              {animal.lote && (
+                <span className="text-[11px] font-semibold px-2 py-0.5 rounded-full"
+                  style={{ backgroundColor: "rgba(58,74,50,0.1)", color: "var(--color-campo)" }}>
+                  {animal.lote}
+                </span>
+              )}
+            </div>
+          )}
+        </div>
       </div>
 
       {/* Animal details */}
