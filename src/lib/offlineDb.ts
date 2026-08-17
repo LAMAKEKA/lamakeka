@@ -11,6 +11,10 @@ export interface CachedAnimal {
   sexo: string | null;
   fecha_nacimiento: string | null;
   lote: string | null;
+  potrero_id: string | null;
+  categoria: string | null;
+  fecha_aplicacion: string | null;
+  motivo_declaracion: string | null;
 }
 
 export interface PendingScan {

@@ -56,8 +56,15 @@ export default function SenasaPage() {
     if (!establecimientoId) return;
     setSavingRenspa(true);
     const supabase = createClient();
-    await supabase.from("establecimientos").update({ renspa: renspa.trim() || null }).eq("id", establecimientoId);
+    const { error } = await supabase
+      .from("establecimientos")
+      .update({ renspa: renspa.trim() || null })
+      .eq("id", establecimientoId);
     setSavingRenspa(false);
+    if (error) {
+      alert("No se pudo guardar el RENSPA. " + error.message);
+      return;
+    }
     setRenspaSaved(true);
     setTimeout(() => setRenspaSaved(false), 2500);
   }

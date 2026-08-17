@@ -263,6 +263,8 @@ export default function MangaPage() {
     if (updated) {
       setCurrentAnimal(updated);
       setEditingAnimal(false);
+    } else {
+      alert("No se pudo guardar el animal. Verificá tu conexión.");
     }
   }
 

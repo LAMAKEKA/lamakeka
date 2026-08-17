@@ -199,25 +199,30 @@ export function useSupabaseManga() {
   );
 
   const updateAnimal = useCallback(async (payload: UpdateAnimalPayload): Promise<MangaAnimal | null> => {
-    const supabase = createClient();
-    const { data, error } = await supabase
-      .from("manga_animales")
-      .update({
-        vid: payload.vid,
-        raza: payload.raza,
-        sexo: payload.sexo,
-        fecha_nacimiento: payload.fechaNacimiento,
-        lote: payload.lote,
-        categoria: payload.categoria,
-        potrero_id: payload.potreroId,
-        fecha_aplicacion: payload.fechaAplicacion,
-        motivo_declaracion: payload.motivoDeclaracion,
-      })
-      .eq("id", payload.id)
-      .select("id, eid, vid, raza, sexo, fecha_nacimiento, lote, potrero_id, categoria, fecha_aplicacion, motivo_declaracion")
-      .single();
-    if (error) return null;
-    return data;
+    setSaving(true);
+    try {
+      const supabase = createClient();
+      const { data, error } = await supabase
+        .from("manga_animales")
+        .update({
+          vid: payload.vid,
+          raza: payload.raza,
+          sexo: payload.sexo,
+          fecha_nacimiento: payload.fechaNacimiento,
+          lote: payload.lote,
+          categoria: payload.categoria,
+          potrero_id: payload.potreroId,
+          fecha_aplicacion: payload.fechaAplicacion,
+          motivo_declaracion: payload.motivoDeclaracion,
+        })
+        .eq("id", payload.id)
+        .select("id, eid, vid, raza, sexo, fecha_nacimiento, lote, potrero_id, categoria, fecha_aplicacion, motivo_declaracion")
+        .single();
+      if (error) return null;
+      return data;
+    } finally {
+      setSaving(false);
+    }
   }, []);
 
   return { loadingAnimal, saving, fetchAnimal, fetchRegistros, scanEid, createAnimal, updateAnimal, saveRegistro };

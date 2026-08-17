@@ -77,7 +77,7 @@ export function useOfflineQueue() {
     const supabase = createClient();
     const { data } = await supabase
       .from("manga_animales")
-      .select("id, eid, vid, raza, sexo, fecha_nacimiento, lote")
+      .select("id, eid, vid, raza, sexo, fecha_nacimiento, lote, potrero_id, categoria, fecha_aplicacion, motivo_declaracion")
       .eq("establecimiento_id", estabId);
     if (data) await cacheAnimals(data as CachedAnimal[]);
   }, []);
