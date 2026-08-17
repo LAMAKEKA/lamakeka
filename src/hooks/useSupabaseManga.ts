@@ -11,6 +11,10 @@ export interface MangaAnimal {
   sexo: string | null;
   fecha_nacimiento: string | null;
   lote: string | null;
+  potrero_id: string | null;
+  categoria: string | null;
+  fecha_aplicacion: string | null;
+  motivo_declaracion: string | null;
 }
 
 export interface RegistroManga {
@@ -46,7 +50,24 @@ export interface CreateAnimalPayload {
   sexo: string | null;
   fechaNacimiento: string | null;
   lote: string | null;
+  categoria: string | null;
+  potreroId: string | null;
+  fechaAplicacion: string | null;
+  motivoDeclaracion: string | null;
   establecimientoId: string;
+}
+
+export interface UpdateAnimalPayload {
+  id: string;
+  vid: string | null;
+  raza: string | null;
+  sexo: string | null;
+  fechaNacimiento: string | null;
+  lote: string | null;
+  categoria: string | null;
+  potreroId: string | null;
+  fechaAplicacion: string | null;
+  motivoDeclaracion: string | null;
 }
 
 export function useSupabaseManga() {
@@ -60,7 +81,7 @@ export function useSupabaseManga() {
         const supabase = createClient();
         const { data } = await supabase
           .from("manga_animales")
-          .select("id, eid, vid, raza, sexo, fecha_nacimiento, lote")
+          .select("id, eid, vid, raza, sexo, fecha_nacimiento, lote, potrero_id, categoria, fecha_aplicacion, motivo_declaracion")
           .eq("establecimiento_id", establecimientoId)
           .eq("eid", eid)
           .maybeSingle();
@@ -107,13 +128,8 @@ export function useSupabaseManga() {
 
   const createAnimal = useCallback(
     async ({
-      eid,
-      vid,
-      raza,
-      sexo,
-      fechaNacimiento,
-      lote,
-      establecimientoId,
+      eid, vid, raza, sexo, fechaNacimiento, lote,
+      categoria, potreroId, fechaAplicacion, motivoDeclaracion, establecimientoId,
     }: CreateAnimalPayload): Promise<MangaAnimal | null> => {
       const supabase = createClient();
       const { data, error } = await supabase
@@ -126,14 +142,18 @@ export function useSupabaseManga() {
           sexo,
           fecha_nacimiento: fechaNacimiento,
           lote,
+          categoria,
+          potrero_id: potreroId,
+          fecha_aplicacion: fechaAplicacion,
+          motivo_declaracion: motivoDeclaracion,
         })
-        .select("id, eid, vid, raza, sexo, fecha_nacimiento, lote")
+        .select("id, eid, vid, raza, sexo, fecha_nacimiento, lote, potrero_id, categoria, fecha_aplicacion, motivo_declaracion")
         .single();
 
       if (error) {
         const { data: existing } = await supabase
           .from("manga_animales")
-          .select("id, eid, vid, raza, sexo, fecha_nacimiento, lote")
+          .select("id, eid, vid, raza, sexo, fecha_nacimiento, lote, potrero_id, categoria, fecha_aplicacion, motivo_declaracion")
           .eq("establecimiento_id", establecimientoId)
           .eq("eid", eid)
           .maybeSingle();
@@ -178,5 +198,32 @@ export function useSupabaseManga() {
     [scanEid]
   );
 
-  return { loadingAnimal, saving, fetchAnimal, fetchRegistros, scanEid, createAnimal, saveRegistro };
+  const updateAnimal = useCallback(async (payload: UpdateAnimalPayload): Promise<MangaAnimal | null> => {
+    setSaving(true);
+    try {
+      const supabase = createClient();
+      const { data, error } = await supabase
+        .from("manga_animales")
+        .update({
+          vid: payload.vid,
+          raza: payload.raza,
+          sexo: payload.sexo,
+          fecha_nacimiento: payload.fechaNacimiento,
+          lote: payload.lote,
+          categoria: payload.categoria,
+          potrero_id: payload.potreroId,
+          fecha_aplicacion: payload.fechaAplicacion,
+          motivo_declaracion: payload.motivoDeclaracion,
+        })
+        .eq("id", payload.id)
+        .select("id, eid, vid, raza, sexo, fecha_nacimiento, lote, potrero_id, categoria, fecha_aplicacion, motivo_declaracion")
+        .single();
+      if (error) return null;
+      return data;
+    } finally {
+      setSaving(false);
+    }
+  }, []);
+
+  return { loadingAnimal, saving, fetchAnimal, fetchRegistros, scanEid, createAnimal, updateAnimal, saveRegistro };
 }

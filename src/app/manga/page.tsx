@@ -9,12 +9,14 @@ import { useSupabaseManga } from "@/hooks/useSupabaseManga";
 import { useCamposConfig } from "@/hooks/useCamposConfig";
 import { useSesiones } from "@/hooks/useSesiones";
 import { useOfflineQueue } from "@/hooks/useOfflineQueue";
+import { usePotreros } from "@/hooks/usePotreros";
 import { getDeviceId, updateScanDatos } from "@/lib/offlineDb";
 import { isValidEid } from "@/lib/eid";
 import { LectorPanel, type SessionItem } from "@/components/manga/LectorPanel";
 import { FichaAnimal } from "@/components/manga/FichaAnimal";
 import { FormularioDinamico } from "@/components/manga/FormularioDinamico";
 import { CrearAnimalForm, type AnimalNuevo } from "@/components/manga/CrearAnimalForm";
+import { EditarAnimalForm } from "@/components/manga/EditarAnimalForm";
 import { ExportCSV } from "@/components/manga/ExportCSV";
 import type { MangaAnimal, RegistroManga } from "@/hooks/useSupabaseManga";
 
@@ -29,16 +31,18 @@ export default function MangaPage() {
   const [currentClientId, setCurrentClientId] = useState<string | null>(null);
   const [savedNotice, setSavedNotice] = useState(false);
   const [creatingAnimal, setCreatingAnimal] = useState(false);
+  const [editingAnimal, setEditingAnimal] = useState(false);
   const [processing, setProcessing] = useState(false);
   const [sessionId, setSessionId] = useState<string | null>(null);
 
   const sessionDate = new Date().toISOString().split("T")[0];
 
-  const { loadingAnimal, saving, fetchAnimal, fetchRegistros, scanEid, createAnimal, saveRegistro } =
+  const { loadingAnimal, saving, fetchAnimal, fetchRegistros, scanEid, createAnimal, updateAnimal, saveRegistro } =
     useSupabaseManga();
   const { campos, fetchCampos } = useCamposConfig();
   const { sesiones, fetchSesiones, createSesion } = useSesiones();
   const { online, pendingCount, cacheAnimalIndex, lookupLocal, enqueue } = useOfflineQueue();
+  const { potreros, fetchPotreros } = usePotreros();
 
   const sessionItemsRef = useRef<SessionItem[]>([]);
   useEffect(() => {
@@ -57,6 +61,7 @@ export default function MangaPage() {
         setEstablecimientoId(estab.id);
         fetchSesiones(estab.id);
         cacheAnimalIndex(estab.id);
+        fetchPotreros(estab.id);
       }
       if (user) {
         const { data: profile } = await supabase
@@ -68,7 +73,7 @@ export default function MangaPage() {
       }
     })();
     fetchCampos(true);
-  }, [fetchCampos, fetchSesiones, cacheAnimalIndex]);
+  }, [fetchCampos, fetchSesiones, cacheAnimalIndex, fetchPotreros]);
 
   // ── Cuando la cola se vacía estando online, los ítems pendientes se ven sincronizados
 
@@ -86,6 +91,7 @@ export default function MangaPage() {
       setSelectedEid(eid);
       setFormValues({});
       setCreatingAnimal(false);
+      setEditingAnimal(false);
       const item = sessionItemsRef.current.find((i) => i.eid === eid);
       if (item) setCurrentClientId(item.clientId);
 
@@ -111,6 +117,7 @@ export default function MangaPage() {
         setSelectedEid(eid);
         setFormValues({});
         setCreatingAnimal(false);
+        setEditingAnimal(false);
 
         const existing = sessionItemsRef.current.find((i) => i.eid === eid);
         if (existing) {
@@ -235,6 +242,10 @@ export default function MangaPage() {
       sexo: animal.sexo,
       fechaNacimiento: animal.fechaNacimiento,
       lote: animal.lote,
+      categoria: animal.categoria,
+      potreroId: animal.potreroId,
+      fechaAplicacion: animal.fechaAplicacion,
+      motivoDeclaracion: animal.motivoDeclaracion,
       establecimientoId,
     });
     setCreatingAnimal(false);
@@ -244,6 +255,16 @@ export default function MangaPage() {
         prev.map((i) => (i.eid === animal.eid ? { ...i, found: true, vid: created.vid } : i))
       );
       cacheAnimalIndex(establecimientoId);
+    }
+  }
+
+  async function handleUpdateAnimal(payload: Parameters<typeof updateAnimal>[0]) {
+    const updated = await updateAnimal(payload);
+    if (updated) {
+      setCurrentAnimal(updated);
+      setEditingAnimal(false);
+    } else {
+      alert("No se pudo guardar el animal. Verificá tu conexión.");
     }
   }
 
@@ -330,13 +351,25 @@ export default function MangaPage() {
             registros={currentRegistros}
             loading={loadingAnimal || processing}
             campos={campos}
+            onEdit={() => setEditingAnimal(true)}
           />
+
+          {selectedEid && editingAnimal && currentAnimal && (
+            <EditarAnimalForm
+              animal={currentAnimal}
+              potreros={potreros}
+              saving={saving}
+              onSave={handleUpdateAnimal}
+              onCancel={() => setEditingAnimal(false)}
+            />
+          )}
 
           {selectedEid && !loadingAnimal && !processing && !currentAnimal && (
             online ? (
               <CrearAnimalForm
                 eid={selectedEid}
                 saving={creatingAnimal}
+                potreros={potreros}
                 onCreate={handleCreateAnimal}
                 onCancel={() => setSelectedEid(null)}
               />
