@@ -1,7 +1,7 @@
 # lamakeka
 
 > **Repo remoto:** `https://github.com/LAMAKEKA/lamakeka.git` (org `LAMAKEKA`, sin guion; repo privado).
-> Cuenta dueña: `lamakeka2026`. No usar `LA-MAKEKA/lamakeka` (con guion), es un duplicado erróneo.
+> Cuenta dueña: `lamakeka2026`. `LA-MAKEKA/lamakeka` (con guion) no se usa para este proyecto.
 
 This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
 

@@ -5,7 +5,7 @@ Este proyecto trabaja SIEMPRE contra el repo remoto **`https://github.com/LAMAKE
 - `git remote get-url origin` debe ser `https://github.com/LAMAKEKA/lamakeka.git`.
 - Push y PRs siempre vía `gh` con `--repo LAMAKEKA/lamakeka`.
 - La cuenta GitHub dueña del repo es **`lamakeka2026`** (switch con `gh auth switch --user lamakeka2026` si hace falta).
-- No usar `LA-MAKEKA/lamakeka` (con guion): es un duplicado erróneo, no es el repo oficial.
+- `LA-MAKEKA/lamakeka` (con guion) es otro repo que NO se usa para este proyecto. Ignorar.
 
 <!-- BEGIN:nextjs-agent-rules -->
 # This is NOT the Next.js you know
