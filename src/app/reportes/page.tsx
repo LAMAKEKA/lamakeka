@@ -5,7 +5,7 @@ import { Loader2, AlertCircle, TrendingUp, TrendingDown, DollarSign, CheckCircle
 import { createClient } from "@/lib/supabase/client";
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer,
-  PieChart, Pie, Cell, Sector,
+  PieChart, Pie, Cell,
 } from "recharts";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -83,11 +83,6 @@ function pickColor(label: string, idx: number): string {
 }
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
-
-function shortMonth(iso: string): string {
-  const d = new Date(iso + "T12:00:00");
-  return d.toLocaleString("es-AR", { month: "short" }).replace(".", "");
-}
 
 function last6Months(): { key: string; label: string }[] {
   const result = [];
@@ -668,7 +663,7 @@ export default function ReportesPage() {
   const [activeTab, setActiveTab] = useState<Tab>("hacienda");
   const [establecimientoId, setEstablecimientoId] = useState<string | null>(null);
   const [loadingBase, setLoadingBase] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const [error] = useState<string | null>(null);
 
   // Data per tab
   const [animales, setAnimales]   = useState<Animal[]>([]);

@@ -124,7 +124,7 @@ function CampoEscala({ campo, value, onChange }: { campo: MangaCampo; value: For
   );
 }
 
-function CampoBooleano({ campo, value, onChange }: { campo: MangaCampo; value: FormValue; onChange: (v: FormValue) => void }) {
+function CampoBooleano({ value, onChange }: { value: FormValue; onChange: (v: FormValue) => void }) {
   const isTrue = value === true || value === "true";
   return (
     <div className="flex gap-2">
@@ -230,7 +230,7 @@ export function FormularioDinamico({
               <CampoEscala campo={campo} value={values[campo.nombre] ?? ""} onChange={(v) => onChange(campo.nombre, v)} />
             )}
             {campo.tipo === "booleano" && (
-              <CampoBooleano campo={campo} value={values[campo.nombre] ?? false} onChange={(v) => onChange(campo.nombre, v)} />
+              <CampoBooleano value={values[campo.nombre] ?? false} onChange={(v) => onChange(campo.nombre, v)} />
             )}
           </div>
         ))}

@@ -217,7 +217,7 @@ function NuevoPotreroModal({ establecimientoId, onClose, onCreated, editData }: 
               ))}
             </div>
             <p className="text-xs mt-2" style={{ color: "rgba(26,26,24,0.4)" }}>
-              Google Maps: click derecho → "¿Qué hay aquí?"
+              Google Maps: click derecho → &quot;¿Qué hay aquí?&quot;
             </p>
           </div>
 
