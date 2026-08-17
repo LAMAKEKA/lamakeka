@@ -77,45 +77,54 @@ export function useProduccion() {
     fecha_alta: string;
   }) {
     setSaving(true);
-    const supabase = createClient();
-    const { error } = await supabase.from("lotes_gallinas").insert({
-      establecimiento_id: input.establecimiento_id,
-      nombre: input.nombre.trim(),
-      cantidad: input.cantidad,
-      galpon: input.galpon,
-      fecha_alta: input.fecha_alta,
-      activo: true,
-    });
-    setSaving(false);
-    if (error) return { error: error.message };
-    await fetchAll(input.establecimiento_id);
-    return { error: null };
+    try {
+      const supabase = createClient();
+      const { error } = await supabase.from("lotes_gallinas").insert({
+        establecimiento_id: input.establecimiento_id,
+        nombre: input.nombre.trim(),
+        cantidad: input.cantidad,
+        galpon: input.galpon,
+        fecha_alta: input.fecha_alta,
+        activo: true,
+      });
+      if (error) return { error: error.message };
+      await fetchAll(input.establecimiento_id);
+      return { error: null };
+    } finally {
+      setSaving(false);
+    }
   }
 
   async function updateLote(id: string, patch: { nombre: string; galpon: string | null }) {
     setSaving(true);
-    const supabase = createClient();
-    const { error } = await supabase
-      .from("lotes_gallinas")
-      .update({ nombre: patch.nombre.trim(), galpon: patch.galpon, updated_at: new Date().toISOString() })
-      .eq("id", id);
-    setSaving(false);
-    if (error) return { error: error.message };
-    setLotes((prev) => prev.map((l) => (l.id === id ? { ...l, ...patch, nombre: patch.nombre.trim() } : l)));
-    return { error: null };
+    try {
+      const supabase = createClient();
+      const { error } = await supabase
+        .from("lotes_gallinas")
+        .update({ nombre: patch.nombre.trim(), galpon: patch.galpon, updated_at: new Date().toISOString() })
+        .eq("id", id);
+      if (error) return { error: error.message };
+      setLotes((prev) => prev.map((l) => (l.id === id ? { ...l, ...patch, nombre: patch.nombre.trim() } : l)));
+      return { error: null };
+    } finally {
+      setSaving(false);
+    }
   }
 
   async function deactivateLote(id: string) {
     setSaving(true);
-    const supabase = createClient();
-    const { error } = await supabase
-      .from("lotes_gallinas")
-      .update({ activo: false, updated_at: new Date().toISOString() })
-      .eq("id", id);
-    setSaving(false);
-    if (error) return { error: error.message };
-    setLotes((prev) => prev.map((l) => (l.id === id ? { ...l, activo: false } : l)));
-    return { error: null };
+    try {
+      const supabase = createClient();
+      const { error } = await supabase
+        .from("lotes_gallinas")
+        .update({ activo: false, updated_at: new Date().toISOString() })
+        .eq("id", id);
+      if (error) return { error: error.message };
+      setLotes((prev) => prev.map((l) => (l.id === id ? { ...l, activo: false } : l)));
+      return { error: null };
+    } finally {
+      setSaving(false);
+    }
   }
 
   function findProduccion(loteId: string, fecha: string) {
@@ -132,23 +141,26 @@ export function useProduccion() {
     replaceId?: string;
   }) {
     setSaving(true);
-    const supabase = createClient();
-    const payload = {
-      establecimiento_id: input.establecimiento_id,
-      lote_id: input.lote_id,
-      fecha: input.fecha,
-      maples: input.maples,
-      merma: input.merma,
-      observaciones: input.observaciones,
-      updated_at: new Date().toISOString(),
-    };
-    const { error } = input.replaceId
-      ? await supabase.from("produccion_huevos").update(payload).eq("id", input.replaceId)
-      : await supabase.from("produccion_huevos").insert(payload);
-    setSaving(false);
-    if (error) return { error: error.message };
-    await fetchAll(input.establecimiento_id);
-    return { error: null };
+    try {
+      const supabase = createClient();
+      const payload = {
+        establecimiento_id: input.establecimiento_id,
+        lote_id: input.lote_id,
+        fecha: input.fecha,
+        maples: input.maples,
+        merma: input.merma,
+        observaciones: input.observaciones,
+        updated_at: new Date().toISOString(),
+      };
+      const { error } = input.replaceId
+        ? await supabase.from("produccion_huevos").update(payload).eq("id", input.replaceId)
+        : await supabase.from("produccion_huevos").insert(payload);
+      if (error) return { error: error.message };
+      await fetchAll(input.establecimiento_id);
+      return { error: null };
+    } finally {
+      setSaving(false);
+    }
   }
 
   async function applyMovimiento(input: {
@@ -166,27 +178,29 @@ export function useProduccion() {
     if (next === null) return { error: "No hay tantas gallinas en el lote." };
 
     setSaving(true);
-    const supabase = createClient();
-    const { error: updError } = await supabase
-      .from("lotes_gallinas")
-      .update({ cantidad: next, updated_at: new Date().toISOString() })
-      .eq("id", input.lote_id);
-    if (updError) {
+    try {
+      const supabase = createClient();
+      const { error: updError } = await supabase
+        .from("lotes_gallinas")
+        .update({ cantidad: next, updated_at: new Date().toISOString() })
+        .eq("id", input.lote_id);
+      if (updError) {
+        return { error: updError.message };
+      }
+      const { error: insError } = await supabase.from("movimientos_gallinas").insert({
+        establecimiento_id: input.establecimiento_id,
+        lote_id: input.lote_id,
+        tipo: input.tipo,
+        cantidad: input.cantidad,
+        fecha: input.fecha,
+        motivo: input.motivo,
+      });
+      if (insError) return { error: insError.message };
+      await fetchAll(input.establecimiento_id);
+      return { error: null };
+    } finally {
       setSaving(false);
-      return { error: updError.message };
     }
-    const { error: insError } = await supabase.from("movimientos_gallinas").insert({
-      establecimiento_id: input.establecimiento_id,
-      lote_id: input.lote_id,
-      tipo: input.tipo,
-      cantidad: input.cantidad,
-      fecha: input.fecha,
-      motivo: input.motivo,
-    });
-    setSaving(false);
-    if (insError) return { error: insError.message };
-    await fetchAll(input.establecimiento_id);
-    return { error: null };
   }
 
   return {
