@@ -2,6 +2,8 @@
 
 import { useState } from "react";
 import { Loader2, UserPlus, AlertCircle } from "lucide-react";
+import { CATEGORIAS_BOVINOS, MOTIVOS_DECLARACION } from "@/lib/senasa";
+import type { PotreroOption } from "@/hooks/usePotreros";
 
 export interface AnimalNuevo {
   eid: string;
@@ -10,11 +12,16 @@ export interface AnimalNuevo {
   sexo: string | null;
   fechaNacimiento: string | null;
   lote: string | null;
+  categoria: string | null;
+  potreroId: string | null;
+  fechaAplicacion: string | null;
+  motivoDeclaracion: string | null;
 }
 
 interface CrearAnimalFormProps {
   eid: string;
   saving: boolean;
+  potreros: PotreroOption[];
   onCreate: (animal: AnimalNuevo) => void;
   onCancel: () => void;
 }
@@ -34,12 +41,16 @@ const onBlurIn = (e: React.FocusEvent<HTMLInputElement | HTMLSelectElement>) => 
   e.target.style.boxShadow = "none";
 };
 
-export function CrearAnimalForm({ eid, saving, onCreate, onCancel }: CrearAnimalFormProps) {
+export function CrearAnimalForm({ eid, saving, potreros, onCreate, onCancel }: CrearAnimalFormProps) {
   const [vid, setVid] = useState("");
   const [raza, setRaza] = useState("");
   const [sexo, setSexo] = useState("");
   const [fechaNacimiento, setFechaNacimiento] = useState("");
   const [lote, setLote] = useState("");
+  const [categoria, setCategoria] = useState("");
+  const [potreroId, setPotreroId] = useState("");
+  const [fechaAplicacion, setFechaAplicacion] = useState(new Date().toISOString().split("T")[0]);
+  const [motivoDeclaracion, setMotivoDeclaracion] = useState("");
   const [error, setError] = useState<string | null>(null);
 
   function handleSubmit(e: React.FormEvent) {
@@ -55,6 +66,10 @@ export function CrearAnimalForm({ eid, saving, onCreate, onCancel }: CrearAnimal
       sexo: sexo.trim() || null,
       fechaNacimiento: fechaNacimiento || null,
       lote: lote.trim() || null,
+      categoria: categoria || null,
+      potreroId: potreroId || null,
+      fechaAplicacion: fechaAplicacion || null,
+      motivoDeclaracion: motivoDeclaracion || null,
     });
   }
 
@@ -161,6 +176,66 @@ export function CrearAnimalForm({ eid, saving, onCreate, onCancel }: CrearAnimal
             onFocus={onFocusIn}
             onBlur={onBlurIn}
           />
+        </div>
+
+        <div className="grid grid-cols-2 gap-4">
+          <div>
+            <label className="form-label">Categoría</label>
+            <select
+              value={categoria}
+              onChange={(e) => setCategoria(e.target.value)}
+              className="w-full px-4 py-3 rounded-xl text-sm outline-none"
+              style={INPUT_STYLE}
+              onFocus={onFocusIn}
+              onBlur={onBlurIn}
+            >
+              <option value="">Sin categoría</option>
+              {CATEGORIAS_BOVINOS.map((c) => <option key={c} value={c}>{c}</option>)}
+            </select>
+          </div>
+          <div>
+            <label className="form-label">Potrero</label>
+            <select
+              value={potreroId}
+              onChange={(e) => setPotreroId(e.target.value)}
+              className="w-full px-4 py-3 rounded-xl text-sm outline-none"
+              style={INPUT_STYLE}
+              onFocus={onFocusIn}
+              onBlur={onBlurIn}
+            >
+              <option value="">Sin potrero</option>
+              {potreros.map((p) => <option key={p.id} value={p.id}>{p.nombre}</option>)}
+            </select>
+          </div>
+        </div>
+
+        <div className="grid grid-cols-2 gap-4">
+          <div>
+            <label className="form-label">Fecha de aplicación</label>
+            <input
+              type="date"
+              value={fechaAplicacion}
+              onChange={(e) => setFechaAplicacion(e.target.value)}
+              className="w-full px-4 py-3 rounded-xl text-sm outline-none"
+              style={INPUT_STYLE}
+              onFocus={onFocusIn}
+              onBlur={onBlurIn}
+            />
+          </div>
+          <div>
+            <label className="form-label">Motivo de declaración</label>
+            <select
+              value={motivoDeclaracion}
+              onChange={(e) => setMotivoDeclaracion(e.target.value)}
+              className="w-full px-4 py-3 rounded-xl text-sm outline-none"
+              style={INPUT_STYLE}
+              onFocus={onFocusIn}
+              onBlur={onBlurIn}
+            >
+              <option value="">Sin motivo</option>
+              {MOTIVOS_DECLARACION.map((m) => <option key={m} value={m}>{m}</option>)}
+            </select>
+          </div>
         </div>
 
         {error && (
