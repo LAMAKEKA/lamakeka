@@ -6,6 +6,7 @@ import { createClient } from "@/lib/supabase/client";
 import { isValidEid } from "@/lib/eid";
 import { MOTIVOS_DECLARACION } from "@/lib/senasa";
 import { buildSenasaCsv, buildSenasaTxt, type SenasaRow } from "@/lib/senasaExport";
+import { ESTADOS_STOCK } from "@/lib/haciendaStock";
 
 const INPUT_STYLE = {
   border: "1.5px solid rgba(212,197,169,0.8)",
@@ -29,6 +30,7 @@ export default function SenasaPage() {
   const [filtroMotivo, setFiltroMotivo] = useState("");
   const [filtroFechaDesde, setFiltroFechaDesde] = useState("");
   const [filtroFechaHasta, setFiltroFechaHasta] = useState("");
+  const [incluirBajas, setIncluirBajas] = useState(false);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -41,14 +43,18 @@ export default function SenasaPage() {
     if (!estab) { setLoading(false); return; }
     setEstablecimientoId(estab.id);
     setRenspa(estab.renspa ?? "");
-    const { data } = await supabase
+    let q = supabase
       .from("manga_animales")
-      .select("eid, vid, sexo, raza, fecha_nacimiento, fecha_aplicacion, motivo_declaracion")
+      .select("eid, vid, sexo, raza, fecha_nacimiento, fecha_aplicacion, motivo_declaracion, estado")
       .eq("establecimiento_id", estab.id)
       .order("eid");
+    if (!incluirBajas) {
+      q = q.in("estado", [...ESTADOS_STOCK]);
+    }
+    const { data } = await q;
     setRows((data ?? []) as SenasaRow[]);
     setLoading(false);
-  }, []);
+  }, [incluirBajas]);
 
   useEffect(() => { load(); }, [load]);
 
@@ -156,6 +162,15 @@ export default function SenasaPage() {
           <span className="text-sm" style={{ color: "rgba(26,26,24,0.3)" }}>→</span>
           <input type="date" value={filtroFechaHasta} onChange={(e) => setFiltroFechaHasta(e.target.value)}
             className="px-3 py-2 rounded-xl text-sm outline-none" style={INPUT_STYLE} />
+          <label className="flex items-center gap-2 text-sm cursor-pointer select-none" style={{ color: "var(--color-tierra)" }}>
+            <input
+              type="checkbox"
+              checked={incluirBajas}
+              onChange={(e) => setIncluirBajas(e.target.checked)}
+              className="rounded"
+            />
+            Incluir bajas (vendido/muerto/…)
+          </label>
         </div>
 
         {/* Resumen */}
