@@ -2,6 +2,8 @@
 
 import { useState, useCallback } from "react";
 import { createClient } from "@/lib/supabase/client";
+import { insertAnimalEvento } from "@/lib/animalEventos";
+import { resolveEstadoAlta } from "@/lib/haciendaStock";
 
 export interface MangaAnimal {
   id: string;
@@ -15,7 +17,11 @@ export interface MangaAnimal {
   categoria: string | null;
   fecha_aplicacion: string | null;
   motivo_declaracion: string | null;
+  estado?: string | null;
 }
+
+const ANIMAL_SELECT =
+  "id, eid, vid, raza, sexo, fecha_nacimiento, lote, potrero_id, categoria, fecha_aplicacion, motivo_declaracion, estado";
 
 export interface RegistroManga {
   id: string;
@@ -55,6 +61,7 @@ export interface CreateAnimalPayload {
   fechaAplicacion: string | null;
   motivoDeclaracion: string | null;
   establecimientoId: string;
+  usuario?: string | null;
 }
 
 export interface UpdateAnimalPayload {
@@ -68,6 +75,10 @@ export interface UpdateAnimalPayload {
   potreroId: string | null;
   fechaAplicacion: string | null;
   motivoDeclaracion: string | null;
+  /** Si se setea, egreso individual (Task 6). */
+  estado?: string | null;
+  establecimientoId?: string;
+  usuario?: string | null;
 }
 
 export function useSupabaseManga() {
@@ -81,7 +92,7 @@ export function useSupabaseManga() {
         const supabase = createClient();
         const { data } = await supabase
           .from("manga_animales")
-          .select("id, eid, vid, raza, sexo, fecha_nacimiento, lote, potrero_id, categoria, fecha_aplicacion, motivo_declaracion")
+          .select(ANIMAL_SELECT)
           .eq("establecimiento_id", establecimientoId)
           .eq("eid", eid)
           .maybeSingle();
@@ -128,10 +139,21 @@ export function useSupabaseManga() {
 
   const createAnimal = useCallback(
     async ({
-      eid, vid, raza, sexo, fechaNacimiento, lote,
-      categoria, potreroId, fechaAplicacion, motivoDeclaracion, establecimientoId,
+      eid,
+      vid,
+      raza,
+      sexo,
+      fechaNacimiento,
+      lote,
+      categoria,
+      potreroId,
+      fechaAplicacion,
+      motivoDeclaracion,
+      establecimientoId,
+      usuario,
     }: CreateAnimalPayload): Promise<MangaAnimal | null> => {
       const supabase = createClient();
+      const estado = resolveEstadoAlta(potreroId);
       const { data, error } = await supabase
         .from("manga_animales")
         .insert({
@@ -146,19 +168,38 @@ export function useSupabaseManga() {
           potrero_id: potreroId,
           fecha_aplicacion: fechaAplicacion,
           motivo_declaracion: motivoDeclaracion,
+          estado,
         })
-        .select("id, eid, vid, raza, sexo, fecha_nacimiento, lote, potrero_id, categoria, fecha_aplicacion, motivo_declaracion")
+        .select(ANIMAL_SELECT)
         .single();
 
       if (error) {
         const { data: existing } = await supabase
           .from("manga_animales")
-          .select("id, eid, vid, raza, sexo, fecha_nacimiento, lote, potrero_id, categoria, fecha_aplicacion, motivo_declaracion")
+          .select(ANIMAL_SELECT)
           .eq("establecimiento_id", establecimientoId)
           .eq("eid", eid)
           .maybeSingle();
         return existing;
       }
+
+      if (data) {
+        await insertAnimalEvento(supabase, {
+          establecimientoId,
+          animalId: data.id,
+          eid: data.eid,
+          tipo: "alta",
+          usuario: usuario ?? null,
+          datos: {
+            categoria: data.categoria,
+            potrero_id: data.potrero_id,
+            estado: data.estado ?? estado,
+            vid: data.vid,
+            sexo: data.sexo,
+          },
+        });
+      }
+
       return data;
     },
     []
@@ -202,6 +243,32 @@ export function useSupabaseManga() {
     setSaving(true);
     try {
       const supabase = createClient();
+
+      type PrevRow = MangaAnimal & { establecimiento_id: string };
+      const { data: prevRaw } = await supabase
+        .from("manga_animales")
+        .select(
+          "id, eid, vid, raza, sexo, fecha_nacimiento, lote, potrero_id, categoria, fecha_aplicacion, motivo_declaracion, estado, establecimiento_id"
+        )
+        .eq("id", payload.id)
+        .maybeSingle();
+
+      const prev = prevRaw as PrevRow | null;
+      if (!prev) return null;
+
+      const nextPotrero = payload.potreroId;
+      const nextCategoria = payload.categoria;
+      let nextEstado = payload.estado ?? prev.estado ?? "activo";
+
+      // Si no es egreso explícito, recalcular stock location state
+      if (!payload.estado) {
+        if (!nextPotrero) {
+          nextEstado = "sin_ubicar";
+        } else if (prev.estado === "sin_ubicar" || prev.estado === "activo" || !prev.estado) {
+          nextEstado = "activo";
+        }
+      }
+
       const { data, error } = await supabase
         .from("manga_animales")
         .update({
@@ -210,16 +277,63 @@ export function useSupabaseManga() {
           sexo: payload.sexo,
           fecha_nacimiento: payload.fechaNacimiento,
           lote: payload.lote,
-          categoria: payload.categoria,
-          potrero_id: payload.potreroId,
+          categoria: nextCategoria,
+          potrero_id: nextPotrero,
           fecha_aplicacion: payload.fechaAplicacion,
           motivo_declaracion: payload.motivoDeclaracion,
+          estado: nextEstado,
+          updated_at: new Date().toISOString(),
         })
         .eq("id", payload.id)
-        .select("id, eid, vid, raza, sexo, fecha_nacimiento, lote, potrero_id, categoria, fecha_aplicacion, motivo_declaracion")
+        .select(ANIMAL_SELECT)
         .single();
-      if (error) return null;
-      return data;
+
+      if (error || !data) return null;
+
+      const establecimientoId = payload.establecimientoId ?? prev.establecimiento_id;
+
+      if (establecimientoId) {
+        if ((prev.potrero_id ?? null) !== (nextPotrero ?? null)) {
+          await insertAnimalEvento(supabase, {
+            establecimientoId,
+            animalId: data.id,
+            eid: data.eid,
+            tipo: "cambio_potrero",
+            usuario: payload.usuario ?? null,
+            datos: { from: prev.potrero_id, to: nextPotrero },
+          });
+        }
+        if ((prev.categoria ?? null) !== (nextCategoria ?? null)) {
+          await insertAnimalEvento(supabase, {
+            establecimientoId,
+            animalId: data.id,
+            eid: data.eid,
+            tipo: "cambio_categoria",
+            usuario: payload.usuario ?? null,
+            datos: { from: prev.categoria, to: nextCategoria },
+          });
+        }
+        if (payload.estado && payload.estado !== prev.estado) {
+          const tipoEgreso =
+            payload.estado === "vendido"
+              ? "venta"
+              : payload.estado === "muerto"
+                ? "muerte"
+                : payload.estado === "transferido"
+                  ? "transferencia_salida"
+                  : "otro";
+          await insertAnimalEvento(supabase, {
+            establecimientoId,
+            animalId: data.id,
+            eid: data.eid,
+            tipo: tipoEgreso,
+            usuario: payload.usuario ?? null,
+            datos: { from: prev.estado, to: payload.estado },
+          });
+        }
+      }
+
+      return data as MangaAnimal;
     } finally {
       setSaving(false);
     }
