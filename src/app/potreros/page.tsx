@@ -1,9 +1,14 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useMemo } from "react";
 import { Plus, Map, FileSpreadsheet, ImageIcon, Upload, MoreHorizontal, Beef, X, Loader2, AlertCircle } from "lucide-react";
 import dynamic from "next/dynamic";
 import { createClient } from "@/lib/supabase/client";
+import { ESTADOS_STOCK, countByPotrero } from "@/lib/haciendaStock";
+import { usePotreros } from "@/hooks/usePotreros";
+import { useSupabaseManga, type MangaAnimal, type UpdateAnimalPayload } from "@/hooks/useSupabaseManga";
+import { AnimalFichaDrawer } from "@/components/hacienda/AnimalFichaDrawer";
+import type { HaciendaAnimalRow } from "@/hooks/useHaciendaAnimales";
 
 const PotrerosMap = dynamic(() => import("@/components/map/potrero-map"), {
   ssr: false,
@@ -291,6 +296,12 @@ export default function PotrerosPage() {
   const [showModal, setShowModal] = useState(false);
   const [openMenuId, setOpenMenuId] = useState<string | null>(null);
   const [editPotrero, setEditPotrero] = useState<Potrero | null>(null);
+  const [stockAnimals, setStockAnimals] = useState<HaciendaAnimalRow[]>([]);
+  const [expandedPotreroId, setExpandedPotreroId] = useState<string | null>(null);
+  const [selectedAnimal, setSelectedAnimal] = useState<HaciendaAnimalRow | null>(null);
+  const [userName, setUserName] = useState("");
+  const { potreros: potreroOptions, fetchPotreros } = usePotreros();
+  const { updateAnimal, saving } = useSupabaseManga();
 
   useEffect(() => {
     if (!openMenuId) return;
@@ -311,7 +322,7 @@ export default function PotrerosPage() {
     potrero: p.nombre,
     evento: "Ingreso",
     fecha: p.desde ?? "—",
-    detalle: p.cabezas > 0 ? `${p.cabezas} cabezas` : "Sin animales",
+    detalle: p.cabezas > 0 ? `${p.cabezas} cabezas (libreta)` : "Sin estimado libreta",
     responsable: "—",
   }));
 
@@ -320,19 +331,78 @@ export default function PotrerosPage() {
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return;
 
+    setUserName(
+      (user.user_metadata?.nombre && user.user_metadata?.apellido)
+        ? `${user.user_metadata.nombre} ${user.user_metadata.apellido}`
+        : user.email ?? ""
+    );
+
     const { data: estab } = await supabase.from("establecimientos").select("id").limit(1).single();
     if (!estab) return;
     setEstablecimientoId(estab.id);
+    fetchPotreros(estab.id);
 
     const { data } = await supabase.from("potreros").select("*").eq("establecimiento_id", estab.id).order("created_at", { ascending: false });
     setPotreros(data ?? []);
+
+    const { data: animals } = await supabase
+      .from("manga_animales")
+      .select("id, eid, vid, raza, sexo, fecha_nacimiento, lote, potrero_id, categoria, fecha_aplicacion, motivo_declaracion, estado, updated_at")
+      .eq("establecimiento_id", estab.id)
+      .in("estado", [...ESTADOS_STOCK]);
+
+    setStockAnimals(
+      ((animals ?? []) as Omit<HaciendaAnimalRow, "potrero_nombre">[]).map((a) => ({
+        ...a,
+        potrero_nombre: null,
+      }))
+    );
     setLoading(false);
-  }, []);
+  }, [fetchPotreros]);
 
   useEffect(() => { fetchData(); }, [fetchData]);
 
-  const totalCabezas = potreros.reduce((s, p) => s + p.cabezas, 0);
+  const eidByPotrero = useMemo(() => countByPotrero(
+    stockAnimals.map((a) => ({ potrero_id: a.potrero_id, estado: a.estado ?? "activo" }))
+  ), [stockAnimals]);
+
+  const totalCabezasEid = useMemo(
+    () => Object.values(eidByPotrero).reduce((s, n) => s + n, 0),
+    [eidByPotrero]
+  );
+  const totalCabezasLibreta = potreros.reduce((s, p) => s + p.cabezas, 0);
   const totalHa = potreros.reduce((s, p) => s + Number(p.hectareas), 0);
+
+  function animalsOf(potreroId: string) {
+    return stockAnimals.filter((a) => a.potrero_id === potreroId);
+  }
+
+  function toManga(a: HaciendaAnimalRow): MangaAnimal {
+    return {
+      id: a.id,
+      eid: a.eid,
+      vid: a.vid,
+      raza: a.raza,
+      sexo: a.sexo,
+      fecha_nacimiento: a.fecha_nacimiento,
+      lote: a.lote,
+      potrero_id: a.potrero_id,
+      categoria: a.categoria,
+      fecha_aplicacion: a.fecha_aplicacion,
+      motivo_declaracion: a.motivo_declaracion,
+      estado: a.estado,
+    };
+  }
+
+  async function handleSaveAnimal(payload: UpdateAnimalPayload) {
+    const updated = await updateAnimal(payload);
+    if (!updated) {
+      alert("No se pudo guardar el animal.");
+      return;
+    }
+    await fetchData();
+    setSelectedAnimal(null);
+  }
 
   return (
     <>
@@ -342,6 +412,18 @@ export default function PotrerosPage() {
       {editPotrero && establecimientoId && (
         <NuevoPotreroModal establecimientoId={establecimientoId} editData={editPotrero}
           onClose={() => setEditPotrero(null)} onCreated={fetchData} />
+      )}
+      {selectedAnimal && establecimientoId && (
+        <AnimalFichaDrawer
+          animal={toManga(selectedAnimal)}
+          establecimientoId={establecimientoId}
+          potreros={potreroOptions}
+          saving={saving}
+          usuario={userName}
+          onSave={handleSaveAnimal}
+          onClose={() => setSelectedAnimal(null)}
+          onChanged={fetchData}
+        />
       )}
 
       <div className="flex flex-col min-h-full">
@@ -381,25 +463,33 @@ export default function PotrerosPage() {
             ) : (
               <div className="flex flex-col gap-4">
                 {/* Summary */}
-                <div className="flex items-center gap-3">
+                <div className="flex flex-wrap items-center gap-3">
                   <div className="flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium" style={{ backgroundColor: "rgba(58,74,50,0.08)", color: "var(--color-campo)" }}>
                     <Map size={14} strokeWidth={1.8} /><span>{potreros.length} potreros</span>
                   </div>
                   <div className="flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium" style={{ backgroundColor: "rgba(139,78,42,0.08)", color: "var(--color-cuero)" }}>
                     <span>{totalHa.toLocaleString("es-AR")} ha</span>
                   </div>
+                  <div className="flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium" style={{ backgroundColor: "rgba(58,74,50,0.08)", color: "var(--color-campo)" }}>
+                    <Beef size={14} strokeWidth={1.8} /><span>{totalCabezasEid.toLocaleString("es-AR")} cabezas EID</span>
+                  </div>
                   <div className="flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium" style={{ backgroundColor: "rgba(37,99,235,0.07)", color: "#2563eb" }}>
-                    <Beef size={14} strokeWidth={1.8} /><span>{totalCabezas.toLocaleString("es-AR")} cabezas</span>
+                    <span>{totalCabezasLibreta.toLocaleString("es-AR")} estimado libreta</span>
                   </div>
                 </div>
 
                 {/* Grid */}
-                <div className="grid grid-cols-3 gap-4">
+                <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
                   {potreros.map((pot) => {
                     const estado = ESTADO_STYLE[pot.estado];
-                    const ocupacion = pot.hectareas > 0 ? Math.round((pot.cabezas / pot.hectareas) * 10) / 10 : 0;
+                    const cabezasEid = eidByPotrero[pot.id] ?? 0;
+                    const ocupacion = pot.hectareas > 0 && cabezasEid > 0
+                      ? Math.round((cabezasEid / Number(pot.hectareas)) * 10) / 10
+                      : 0;
+                    const expanded = expandedPotreroId === pot.id;
+                    const list = animalsOf(pot.id);
                     return (
-                      <div key={pot.id} className="rounded-2xl p-5 flex flex-col gap-4 cursor-default"
+                      <div key={pot.id} className="rounded-2xl p-5 flex flex-col gap-4"
                         style={{ backgroundColor: "#ffffff", border: "1px solid rgba(212,197,169,0.5)", boxShadow: "0 1px 3px rgba(26,26,24,0.06)" }}>
                         <div className="flex items-start justify-between">
                           <div>
@@ -436,17 +526,23 @@ export default function PotrerosPage() {
                         </div>
                         <div className="flex gap-4">
                           <div>
-                            <p className="text-xl font-bold" style={{ color: pot.cabezas > 0 ? "var(--color-campo)" : "rgba(26,26,24,0.2)", fontFamily: "var(--font-playfair), Georgia, serif" }}>
-                              {pot.cabezas > 0 ? pot.cabezas.toLocaleString("es-AR") : "—"}
+                            <p className="text-xl font-bold" style={{ color: cabezasEid > 0 ? "var(--color-campo)" : "rgba(26,26,24,0.2)", fontFamily: "var(--font-playfair), Georgia, serif" }}>
+                              {cabezasEid > 0 ? cabezasEid.toLocaleString("es-AR") : "—"}
                             </p>
-                            <p className="text-xs" style={{ color: "rgba(26,26,24,0.38)" }}>cabezas</p>
+                            <p className="text-xs" style={{ color: "rgba(26,26,24,0.38)" }}>cabezas EID</p>
                           </div>
-                          {pot.cabezas > 0 && (
+                          {cabezasEid > 0 && (
                             <div>
                               <p className="text-xl font-bold" style={{ color: "var(--color-cuero)", fontFamily: "var(--font-playfair), Georgia, serif" }}>{ocupacion}</p>
-                              <p className="text-xs" style={{ color: "rgba(26,26,24,0.38)" }}>cab/ha</p>
+                              <p className="text-xs" style={{ color: "rgba(26,26,24,0.38)" }}>cab EID/ha</p>
                             </div>
                           )}
+                          <div>
+                            <p className="text-sm font-semibold tabular-nums" style={{ color: "rgba(26,26,24,0.45)" }}>
+                              {pot.cabezas > 0 ? pot.cabezas.toLocaleString("es-AR") : "—"}
+                            </p>
+                            <p className="text-xs" style={{ color: "rgba(26,26,24,0.38)" }}>estimado libreta</p>
+                          </div>
                         </div>
                         {pot.categoria_animal && (
                           <div className="pt-1" style={{ borderTop: "1px solid rgba(212,197,169,0.3)" }}>
@@ -454,6 +550,42 @@ export default function PotrerosPage() {
                               <span className="font-medium" style={{ color: "var(--color-tierra)" }}>{pot.categoria_animal}</span>
                               {pot.desde && <> · desde {pot.desde.split("-").reverse().join("/")}</>}
                             </p>
+                          </div>
+                        )}
+                        <button
+                          type="button"
+                          onClick={() => setExpandedPotreroId(expanded ? null : pot.id)}
+                          className="text-xs font-semibold py-2 rounded-xl"
+                          style={{
+                            border: "1.5px solid rgba(212,197,169,0.8)",
+                            color: "var(--color-campo)",
+                            backgroundColor: expanded ? "rgba(58,74,50,0.06)" : "transparent",
+                          }}
+                        >
+                          {expanded ? "Ocultar animales" : `Ver animales EID (${cabezasEid})`}
+                        </button>
+                        {expanded && (
+                          <div className="flex flex-col gap-1.5 max-h-48 overflow-y-auto">
+                            {list.length === 0 ? (
+                              <p className="text-xs py-2" style={{ color: "rgba(26,26,24,0.45)" }}>Sin caravanas en este potrero.</p>
+                            ) : (
+                              list.map((a) => (
+                                <button
+                                  key={a.id}
+                                  type="button"
+                                  onClick={() => setSelectedAnimal(a)}
+                                  className="text-left px-3 py-2 rounded-xl text-xs flex justify-between gap-2"
+                                  style={{
+                                    backgroundColor: "rgba(240,237,230,0.7)",
+                                    border: "1px solid rgba(212,197,169,0.4)",
+                                    color: "var(--color-tierra)",
+                                  }}
+                                >
+                                  <span className="font-mono">{a.eid}</span>
+                                  <span style={{ color: "rgba(26,26,24,0.5)" }}>{a.categoria ?? "—"}</span>
+                                </button>
+                              ))
+                            )}
                           </div>
                         )}
                       </div>
@@ -473,7 +605,7 @@ export default function PotrerosPage() {
                   id: p.id,
                   nombre: p.nombre,
                   hectareas: p.hectareas,
-                  cabezas: p.cabezas,
+                  cabezas: eidByPotrero[p.id] ?? p.cabezas,
                   estado: p.estado,
                   latitud: p.latitud ?? null,
                   longitud: p.longitud ?? null,
