@@ -1,13 +1,21 @@
 # Integración manga ↔ hacienda/potreros (diseño EN PROGRESO)
 
-> Estado: brainstorming en curso. Guardado para retomar. Fecha: 2026-08-13.
+> **SUPERSEDED 2026-09-23**  
+> Este brainstorm quedó cerrado por:
+> - `docs/superpowers/specs/2026-09-23-manga-hacienda-integracion-prd.md`
+> - `docs/superpowers/plans/2026-09-23-manga-hacienda-integracion.md`
+> - Contexto reunión: `docs/superpowers/specs/2026-09-23-reunion-dueno-mateca.md`
+>
+> No usar este archivo como SoT. Se conserva solo por historia.
 
-## Pedido
+---
+
+## Pedido (histórico)
 
 Papá quiere que los datos de las sesiones de cada animal (que hoy se usan solo para el CSV de CENASA)
 también se puedan usar "en el campo", en las secciones de **hacienda** y **potreros**.
 
-## Modelo de datos actual
+## Modelo de datos actual (al 2026-08-13; desactualizado)
 
 **Manga (animales individuales con RFID):**
 - `manga_animales`: id, establecimiento_id, eid, vid, raza, sexo, fecha_nacimiento, lote
@@ -23,33 +31,25 @@ también se puedan usar "en el campo", en las secciones de **hacienda** y **potr
 **Diferencia clave:** la manga sabe de **individuos** (EID), la hacienda sabe de **cantidades** por potrero/categoría.
 Hoy no hay vínculo entre `manga_animales` y `potreros` / `animales`.
 
-## Decisiones tomadas
+## Decisiones tomadas (históricas — ver PRD para vigentes)
 
 1. **Qué ver en hacienda/potreros:** las dos cosas — (a) animales individuales por potrero con su último
    registro de sesión, y (b) resúmenes/estadísticas por potrero y categoría (promedio de peso, estados
    sanitarios, cantidades).
 
-## Preguntas PENDIENTES (siguiente paso al retomar)
+## Preguntas PENDIENTES — RESUELTAS en PRD 2026-09-23
 
-1. **Vínculo animal ↔ potrero/categoría:** ¿cómo se asigna cada animal a un potrero?
-   Opciones planteadas:
-   - a) Agregar campo "potrero" (selector) + "categoría" a `manga_animales` (recomendado).
-   - b) Reutilizar el campo `lote` como potrero (mapeo por nombre).
-   - c) Asignar potrero en el momento de cargar la sesión.
+1. **Vínculo animal ↔ potrero/categoría:** → `potrero_id` + `categoria` en `manga_animales` (ya migrado SENASA) + eventos de cambio.
+2. **Formato CSV CENASA:** → no romper export actual; TXT SIGSA sigue beta.
+3. **Categoría:** → explícita (`CATEGORIAS_BOVINOS`), no solo derivada de sexo+edad.
 
-2. **Formato del CSV CENASA:** confirmar las columnas exactas que exige CENASA para no romper esa exportación.
+## Posible diseño (borrador histórico)
 
-3. **Categoría de un animal de manga:** hoy la manga guarda `sexo` y `fecha_nacimiento`, no `categoria`.
-   ¿Se agrega `categoria` explícita (Terneros/Novillos/Vacas/Vaquillonas/Toros) o se deriva de sexo+edad?
-
-## Posible diseño (borrador, sin aprobar)
-
-- Agregar a `manga_animales`: `potrero_id` (FK a `potreros`) y `categoria`.
-- En la vista de **potreros**: mostrar animales individuales de ese potrero + resumen.
-- En la vista de **hacienda**: agrupar los animales individuales por categoría/potrero, con resúmenes.
+- Agregar a `manga_animales`: `potrero_id` (FK a `potreros`) y `categoria`. *(hecho en migración oficial_senasa)*
+- En la vista de **potreros**: mostrar animales individuales de ese potrero + resumen. *(plan P0 task 8)*
+- En la vista de **hacienda**: agrupar los animales individuales por categoría/potrero, con resúmenes. *(plan P0 task 7, tab Por animal)*
 - Mantener intacta la exportación CSV de CENASA.
 
 ## Cómo retomar
 
-En opencode, desde este proyecto, decir algo como:
-> "Continuá el diseño de integración manga-hacienda. Leé docs/superpowers/specs/2026-08-13-manga-hacienda-integracion-design.md y seguí desde la pregunta 1 pendiente."
+Usar el prompt maestro del PRD 2026-09-23, no este archivo.
