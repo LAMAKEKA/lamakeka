@@ -59,6 +59,10 @@ export function CrearAnimalForm({ eid, saving, potreros, onCreate, onCancel }: C
       setError("Indicá el sexo del animal.");
       return;
     }
+    if (!categoria) {
+      setError("Indicá la categoría del animal.");
+      return;
+    }
     onCreate({
       eid,
       vid: vid.trim() || null,
@@ -180,16 +184,17 @@ export function CrearAnimalForm({ eid, saving, potreros, onCreate, onCancel }: C
 
         <div className="grid grid-cols-2 gap-4">
           <div>
-            <label className="form-label">Categoría</label>
+            <label className="form-label">Categoría *</label>
             <select
               value={categoria}
               onChange={(e) => setCategoria(e.target.value)}
+              required
               className="w-full px-4 py-3 rounded-xl text-sm outline-none"
               style={INPUT_STYLE}
               onFocus={onFocusIn}
               onBlur={onBlurIn}
             >
-              <option value="">Sin categoría</option>
+              <option value="">Seleccionar...</option>
               {CATEGORIAS_BOVINOS.map((c) => <option key={c} value={c}>{c}</option>)}
             </select>
           </div>
@@ -203,9 +208,12 @@ export function CrearAnimalForm({ eid, saving, potreros, onCreate, onCancel }: C
               onFocus={onFocusIn}
               onBlur={onBlurIn}
             >
-              <option value="">Sin potrero</option>
+              <option value="">Sin ubicar (sin potrero)</option>
               {potreros.map((p) => <option key={p.id} value={p.id}>{p.nombre}</option>)}
             </select>
+            <p className="text-xs mt-1.5" style={{ color: "var(--color-tierra)", opacity: 0.65 }}>
+              Si no elegís potrero, el animal queda sin ubicar en el stock.
+            </p>
           </div>
         </div>
 
