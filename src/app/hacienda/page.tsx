@@ -1,13 +1,14 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
-import { Plus, Search, MoreHorizontal, Beef, X, Loader2, AlertCircle, Download, Upload, Filter, Clock, Stethoscope } from "lucide-react";
+import { Plus, Search, MoreHorizontal, Beef, X, Loader2, AlertCircle, Download, Upload, Filter, Clock, Stethoscope, ScanLine } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { exportToExcel, todayISO, slugifyName, parseXlsxDate } from "@/lib/exportExcel";
 import { ImportModal } from "@/components/import-modal";
 import { useDraggable } from "@/lib/useDraggable";
 import { logAudit } from "@/lib/auditLog";
 import { AuditDrawer } from "@/components/audit-drawer";
+import { HaciendaPorAnimal } from "@/components/hacienda/HaciendaPorAnimal";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -507,6 +508,8 @@ function NuevoDiagnosticoModal({ establecimientoId, potreros, onClose, onCreated
 
 export default function HaciendaPage() {
   const [seccion, setSeccion] = useState<"animales" | "prenez">("animales");
+  /** Por animal = EID (manga); por cantidad = libreta legacy */
+  const [vistaHacienda, setVistaHacienda] = useState<"por-animal" | "por-cantidad">("por-animal");
   const [activeTab, setActiveTab] = useState<"todos" | "mis-datos">("todos");
   const [search, setSearch] = useState("");
   const [animales, setAnimales] = useState<Animal[]>([]);
@@ -678,11 +681,13 @@ export default function HaciendaPage() {
             </div>
             <div className="flex items-center gap-2">
               {seccion === "animales" ? (
+                vistaHacienda === "por-cantidad" ? (
                 <>
                   {!loading && <button onClick={() => setShowImportModal(true)} className="hidden md:flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-semibold" style={{ border: "1.5px solid rgba(212,197,169,0.8)", color: "var(--color-tierra)", backgroundColor: "transparent" }}><Upload size={15} strokeWidth={2} />Importar</button>}
                   {!loading && animales.length > 0 && <button onClick={exportar} className="hidden md:flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-semibold" style={{ border: "1.5px solid rgba(212,197,169,0.8)", color: "var(--color-tierra)", backgroundColor: "transparent" }}><Download size={15} strokeWidth={2} />Exportar</button>}
                   <button onClick={() => setShowModal(true)} className="flex items-center gap-2 px-4 md:px-5 py-2.5 rounded-xl text-sm font-semibold text-white hover:opacity-90" style={{ backgroundColor: "var(--color-campo)" }}><Plus size={16} strokeWidth={2.5} /><span className="hidden sm:inline">Nuevo Dato</span><span className="sm:hidden">Nuevo</span></button>
                 </>
+                ) : null
               ) : (
                 <button onClick={() => setShowModalPrenez(true)} className="flex items-center gap-2 px-4 md:px-5 py-2.5 rounded-xl text-sm font-semibold text-white hover:opacity-90" style={{ backgroundColor: "var(--color-campo)" }}><Plus size={16} strokeWidth={2.5} /><span className="hidden sm:inline">Nuevo Diagnóstico</span><span className="sm:hidden">Nuevo</span></button>
               )}
@@ -708,6 +713,33 @@ export default function HaciendaPage() {
           {/* ── ANIMALES ── */}
           {seccion === "animales" && (
             <>
+              <div className="flex items-center gap-1 p-1 rounded-xl self-start" style={{ backgroundColor: "rgba(212,197,169,0.25)" }}>
+                {([
+                  { key: "por-animal" as const, label: "Por animal (EID)", icon: ScanLine },
+                  { key: "por-cantidad" as const, label: "Por cantidad (libreta)", icon: Beef },
+                ]).map(({ key, label, icon: Icon }) => {
+                  const isActive = vistaHacienda === key;
+                  return (
+                    <button key={key} type="button" onClick={() => setVistaHacienda(key)}
+                      className="flex items-center gap-2 px-4 py-1.5 rounded-lg text-sm font-medium transition-all"
+                      style={{ backgroundColor: isActive ? "#ffffff" : "transparent", color: isActive ? "var(--color-tierra)" : "rgba(26,26,24,0.45)", boxShadow: isActive ? "0 1px 3px rgba(26,26,24,0.10)" : "none" }}>
+                      <Icon size={14} strokeWidth={isActive ? 2.2 : 1.8} />{label}
+                    </button>
+                  );
+                })}
+              </div>
+
+              {vistaHacienda === "por-animal" && establecimientoId && (
+                <HaciendaPorAnimal establecimientoId={establecimientoId} userName={userName} />
+              )}
+              {vistaHacienda === "por-animal" && !establecimientoId && loading && (
+                <div className="flex justify-center py-16">
+                  <Loader2 size={28} className="animate-spin" style={{ color: "var(--color-campo)" }} />
+                </div>
+              )}
+
+              {vistaHacienda === "por-cantidad" && (
+              <>
               <div className="flex flex-col gap-3">
                 <div className="flex items-center gap-3 flex-wrap">
                   <div className="flex items-center gap-1 p-1 rounded-xl" style={{ backgroundColor: "rgba(212,197,169,0.25)" }}>
@@ -931,6 +963,8 @@ export default function HaciendaPage() {
                 <p className="text-xs" style={{ color: "rgba(26,26,24,0.35)" }}>
                   {filtered.length} registro{filtered.length !== 1 ? "s" : ""} · {totalCabezas.toLocaleString("es-AR")} cabezas neto
                 </p>
+              )}
+            </>
               )}
             </>
           )}
