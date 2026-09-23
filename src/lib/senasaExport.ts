@@ -6,6 +6,7 @@ export interface SenasaRow {
   fecha_nacimiento: string | null;
   fecha_aplicacion: string | null;
   motivo_declaracion: string | null;
+  estado?: string | null;
 }
 
 function escapeCsvCell(val: unknown): string {
