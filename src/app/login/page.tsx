@@ -3,7 +3,6 @@
 import { useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
 import { Eye, EyeOff, Loader2, AlertCircle } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 
@@ -24,25 +23,38 @@ export default function LoginPage() {
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const router = useRouter();
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setLoading(true);
     setError(null);
 
-    const supabase = createClient();
-    const { error: authError } = await supabase.auth.signInWithPassword({
-      email,
-      password,
-    });
+    try {
+      const supabase = createClient();
+      const { data, error: authError } = await supabase.auth.signInWithPassword({
+        email: email.trim(),
+        password,
+      });
 
-    if (authError) {
-      setError(translateError(authError.message));
+      if (authError) {
+        setError(translateError(authError.message));
+        setLoading(false);
+        return;
+      }
+
+      if (!data.session) {
+        setError("No se pudo crear la sesión. Probá de nuevo.");
+        setLoading(false);
+        return;
+      }
+
+      // Full navigation so proxy/middleware picks up cookies reliably
+      // (router.push alone a veces deja la UI en /login sin feedback).
+      window.location.assign("/");
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : "Error de red al ingresar.";
+      setError(translateError(msg));
       setLoading(false);
-    } else {
-      router.push("/");
-      router.refresh();
     }
   }
 

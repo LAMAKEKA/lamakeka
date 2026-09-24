@@ -9,16 +9,82 @@
 
   --font-display: var(--font-playfair), Georgia, serif;
   --font-body: var(--font-inter), system-ui, sans-serif;
+
+  /* shadcn-compatible tokens (Makeka palette) */
+  --color-background: #F0EDE6;
+  --color-foreground: #1A1A18;
+  --color-card: #ffffff;
+  --color-card-foreground: #1A1A18;
+  --color-primary: #3A4A32;
+  --color-primary-foreground: #ffffff;
+  --color-secondary: #D4C5A9;
+  --color-secondary-foreground: #1A1A18;
+  --color-muted: #E8E4DB;
+  --color-muted-foreground: rgba(26, 26, 24, 0.55);
+  --color-accent: #8B4E2A;
+  --color-accent-foreground: #ffffff;
+  --color-destructive: #dc2626;
+  --color-border: rgba(212, 197, 169, 0.65);
+  --color-input: rgba(212, 197, 169, 0.8);
+  --color-ring: #8B4E2A;
+  --radius-sm: 0.5rem;
+  --radius-md: 0.75rem;
+  --radius-lg: 0.875rem;
+}
+
+:root {
+  --background: #F0EDE6;
+  --foreground: #1A1A18;
+  --card: #ffffff;
+  --card-foreground: #1A1A18;
+  --primary: #3A4A32;
+  --primary-foreground: #ffffff;
+  --secondary: #D4C5A9;
+  --muted: #E8E4DB;
+  --muted-foreground: rgba(26, 26, 24, 0.55);
+  --accent: #8B4E2A;
+  --destructive: #dc2626;
+  --border: rgba(212, 197, 169, 0.65);
+  --input: rgba(212, 197, 169, 0.8);
+  --ring: #8B4E2A;
+  --radius: 0.75rem;
 }
 
 *, *::before, *::after {
   box-sizing: border-box;
 }
 
+html {
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
+}
+
 body {
   background-color: var(--color-pampa);
   color: var(--color-tierra);
   font-family: var(--font-inter), system-ui, sans-serif;
+  overscroll-behavior-y: none;
+}
+
+/* Touch targets + iOS */
+button,
+a,
+[role="button"] {
+  -webkit-tap-highlight-color: transparent;
+}
+
+input,
+select,
+textarea {
+  font-size: 16px; /* evita zoom iOS al focus */
+}
+
+@media (min-width: 768px) {
+  input,
+  select,
+  textarea {
+    font-size: inherit;
+  }
 }
 
 /* ─── Animations ──────────────────────────────────────────────────────────── */
@@ -87,4 +153,42 @@ body {
 
 .sidebar-slide {
   transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* ─── Mobile-first page chrome ───────────────────────────────────────────── */
+
+.page-pad {
+  padding: 1rem;
+}
+
+@media (min-width: 768px) {
+  .page-pad {
+    padding: 2rem;
+  }
+}
+
+/* Tabs scrollables en celu */
+.tabs-scroll {
+  display: flex;
+  gap: 0.25rem;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: none;
+  max-width: 100%;
+}
+.tabs-scroll::-webkit-scrollbar {
+  display: none;
+}
+
+/* Cards táctiles */
+.card-touch {
+  border-radius: 1rem;
+  background: #ffffff;
+  border: 1px solid rgba(212, 197, 169, 0.5);
+  box-shadow: 0 1px 3px rgba(26, 26, 24, 0.06);
+}
+
+/* Bottom sheet-ish drawers already fixed; ensure safe area */
+.safe-bottom {
+  padding-bottom: env(safe-area-inset-bottom, 0px);
 }

@@ -64,32 +64,32 @@ function MetricCardComponent({ card }: { card: MetricCard }) {
 
   return (
     <div
-      className="rounded-2xl p-5 flex flex-col gap-4"
+      className="rounded-xl p-3 flex flex-col gap-2"
       style={{
         backgroundColor: "#ffffff",
-        boxShadow: "0 1px 3px rgba(26,26,24,0.06), 0 1px 2px rgba(26,26,24,0.04)",
+        boxShadow: "0 1px 2px rgba(26,26,24,0.05)",
         border: "1px solid rgba(212,197,169,0.5)",
       }}
     >
-      <div className="flex items-start justify-between">
+      <div className="flex items-center justify-between gap-2">
         <div
-          className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0"
+          className="w-8 h-8 rounded-lg flex items-center justify-center shrink-0"
           style={{ backgroundColor: iconBg }}
         >
-          <Icon size={19} style={{ color: iconColor }} strokeWidth={1.8} />
+          <Icon size={15} style={{ color: iconColor }} strokeWidth={1.8} />
         </div>
         {deltaType === "down" && (
-          <div
-            className="flex items-center gap-1 text-xs font-medium px-2 py-1 rounded-full"
+          <span
+            className="flex items-center gap-0.5 text-[10px] font-medium px-1.5 py-0.5 rounded-full"
             style={{ backgroundColor: "rgba(220,38,38,0.08)", color: "#dc2626" }}
           >
-            <TrendingDown size={12} strokeWidth={2.5} />
+            <TrendingDown size={10} strokeWidth={2.5} />
             {delta}
-          </div>
+          </span>
         )}
         {deltaType === "neutral" && (
           <span
-            className="text-xs font-medium px-2 py-1 rounded-full"
+            className="text-[10px] font-medium px-1.5 py-0.5 rounded-full"
             style={{
               backgroundColor: "rgba(212,197,169,0.3)",
               color: "var(--color-cuero)",
@@ -101,7 +101,7 @@ function MetricCardComponent({ card }: { card: MetricCard }) {
       </div>
       <div>
         <p
-          className="text-3xl font-bold tracking-tight leading-none mb-1"
+          className="text-xl md:text-2xl font-bold tracking-tight leading-none mb-0.5"
           style={{
             color: "var(--color-tierra)",
             fontFamily: "var(--font-playfair), Georgia, serif",
@@ -109,10 +109,10 @@ function MetricCardComponent({ card }: { card: MetricCard }) {
         >
           {value}
         </p>
-        <p className="text-xs font-medium" style={{ color: "rgba(26,26,24,0.5)" }}>
+        <p className="text-[11px] font-medium leading-tight" style={{ color: "rgba(26,26,24,0.55)" }}>
           {label}
         </p>
-        <p className="text-xs mt-0.5" style={{ color: "rgba(26,26,24,0.35)" }}>
+        <p className="text-[10px] mt-0.5 leading-tight" style={{ color: "rgba(26,26,24,0.35)" }}>
           {sub}
         </p>
       </div>
@@ -123,33 +123,30 @@ function MetricCardComponent({ card }: { card: MetricCard }) {
 function ActivityFeed({ activities }: { activities: ActivityItem[] }) {
   return (
     <div
-      className="rounded-2xl flex flex-col"
+      className="rounded-xl flex flex-col"
       style={{
         backgroundColor: "#ffffff",
-        boxShadow: "0 1px 3px rgba(26,26,24,0.06), 0 1px 2px rgba(26,26,24,0.04)",
+        boxShadow: "0 1px 2px rgba(26,26,24,0.05)",
         border: "1px solid rgba(212,197,169,0.5)",
       }}
     >
-      <div className="px-6 py-4 border-b" style={{ borderColor: "rgba(212,197,169,0.4)" }}>
+      <div className="px-4 py-2.5 border-b" style={{ borderColor: "rgba(212,197,169,0.4)" }}>
         <h2
-          className="font-semibold text-base"
+          className="font-semibold text-sm"
           style={{
             color: "var(--color-tierra)",
             fontFamily: "var(--font-playfair), Georgia, serif",
           }}
         >
-          Actividad reciente
+          Actividad
         </h2>
       </div>
 
       {activities.length === 0 ? (
-        <div className="flex flex-col items-center justify-center py-16 gap-2">
-          <Activity size={28} style={{ color: "rgba(26,26,24,0.15)" }} strokeWidth={1.4} />
-          <p className="text-sm" style={{ color: "rgba(26,26,24,0.35)" }}>
-            Sin actividad todavía
-          </p>
-          <p className="text-xs" style={{ color: "rgba(26,26,24,0.25)" }}>
-            Los registros que cargues aparecerán aquí
+        <div className="flex flex-col items-center justify-center py-10 gap-1">
+          <Activity size={22} style={{ color: "rgba(26,26,24,0.15)" }} strokeWidth={1.4} />
+          <p className="text-xs" style={{ color: "rgba(26,26,24,0.35)" }}>
+            Sin movimientos recientes
           </p>
         </div>
       ) : (
@@ -157,43 +154,34 @@ function ActivityFeed({ activities }: { activities: ActivityItem[] }) {
           {activities.map((item) => {
             const Icon = item.icon;
             return (
-              <div key={item.id} className="flex items-start gap-4 px-6 py-4">
+              <div key={item.id} className="flex items-start gap-3 px-4 py-2.5">
                 <div
-                  className="w-9 h-9 rounded-xl flex items-center justify-center shrink-0 mt-0.5"
+                  className="w-7 h-7 rounded-lg flex items-center justify-center shrink-0 mt-0.5"
                   style={{ backgroundColor: item.iconBg }}
                 >
-                  <Icon size={16} style={{ color: item.iconColor }} strokeWidth={1.8} />
+                  <Icon size={14} style={{ color: item.iconColor }} strokeWidth={1.8} />
                 </div>
                 <div className="flex-1 min-w-0">
                   <div className="flex items-start justify-between gap-2">
                     <p
-                      className="text-sm font-medium leading-snug"
+                      className="text-xs font-medium leading-snug"
                       style={{ color: "var(--color-tierra)" }}
                     >
                       {item.title}
                     </p>
                     <span
-                      className="text-xs shrink-0 mt-0.5"
+                      className="text-[10px] shrink-0 mt-0.5"
                       style={{ color: "rgba(26,26,24,0.35)" }}
                     >
                       {item.time}
                     </span>
                   </div>
                   <p
-                    className="text-xs mt-0.5 truncate"
+                    className="text-[11px] mt-0.5 truncate"
                     style={{ color: "rgba(26,26,24,0.45)" }}
                   >
                     {item.description}
                   </p>
-                  <span
-                    className="inline-block mt-1.5 text-[10px] font-medium px-2 py-0.5 rounded-full"
-                    style={{
-                      backgroundColor: item.categoryBg,
-                      color: item.categoryColor,
-                    }}
-                  >
-                    {item.category}
-                  </span>
                 </div>
               </div>
             );
@@ -470,35 +458,33 @@ export default async function DashboardPage() {
   }
 
   rawItems.sort((a, b) => b.ts - a.ts);
-  const activities = rawItems.slice(0, 10).map((r) => r.item);
+  const activities = rawItems.slice(0, 6).map((r) => r.item);
 
-  // Date formatting
+  // Date short
   const now = new Date();
-  const dateStr = now.toLocaleDateString("es-AR", {
-    weekday: "long",
+  const dateFormatted = now.toLocaleDateString("es-AR", {
+    weekday: "short",
     day: "numeric",
-    month: "long",
-    year: "numeric",
+    month: "short",
   });
-  const dateFormatted = dateStr.charAt(0).toUpperCase() + dateStr.slice(1);
 
   return (
     <div className="flex flex-col min-h-full">
-      {/* Page Header */}
+      {/* Header: desktop only (mobile usa top bar del shell) */}
       <div
-        className="px-4 md:px-8 pt-7 pb-5 border-b"
+        className="hidden md:block px-8 pt-6 pb-4 border-b"
         style={{ backgroundColor: "#ffffff", borderColor: "rgba(212,197,169,0.5)" }}
       >
         <div className="flex items-end justify-between">
           <div>
             <p
-              className="text-xs font-medium tracking-widest uppercase mb-1"
+              className="text-[11px] font-medium tracking-wide uppercase mb-0.5"
               style={{ color: "rgba(26,26,24,0.38)" }}
             >
-              Establecimiento
+              Campo
             </p>
             <h1
-              className="text-2xl font-bold leading-tight"
+              className="text-xl font-bold leading-tight"
               style={{
                 color: "var(--color-tierra)",
                 fontFamily: "var(--font-playfair), Georgia, serif",
@@ -507,57 +493,54 @@ export default async function DashboardPage() {
               {estab.nombre}
             </h1>
           </div>
-          <div className="text-right">
-            <p className="text-xs" style={{ color: "rgba(26,26,24,0.38)" }}>
-              {dateFormatted}
-            </p>
-            <div className="flex items-center gap-1.5 mt-1 justify-end">
-              <span
-                className="w-2 h-2 rounded-full animate-pulse"
-                style={{ backgroundColor: "#16a34a" }}
-              />
-              <span className="text-xs font-medium" style={{ color: "#16a34a" }}>
-                En línea
-              </span>
-            </div>
-          </div>
+          <p className="text-xs capitalize" style={{ color: "rgba(26,26,24,0.45)" }}>
+            {dateFormatted}
+          </p>
         </div>
       </div>
 
-      {/* Content */}
-      <div className="flex-1 p-4 md:p-8 flex flex-col gap-6">
-        {/* Metric Cards */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+      {/* Mobile: nombre del campo compacto */}
+      <div className="md:hidden px-3 pt-3 pb-1">
+        <p className="text-xs font-medium truncate" style={{ color: "rgba(26,26,24,0.5)" }}>
+          {estab.nombre} · {dateFormatted}
+        </p>
+      </div>
+
+      <div className="flex-1 p-3 md:p-6 flex flex-col gap-3 md:gap-5">
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-2 md:gap-3">
           {metrics.map((card) => (
-            <div key={card.label} className="animate-fade-up">
-              <MetricCardComponent card={card} />
-            </div>
+            <MetricCardComponent key={card.label} card={card} />
           ))}
         </div>
 
-        {/* Activity Feed + Map */}
-        <div className="grid grid-cols-1 lg:grid-cols-5 gap-4 flex-1">
+        <div className="grid grid-cols-1 lg:grid-cols-5 gap-3 flex-1">
           <div className="lg:col-span-3">
             <ActivityFeed activities={activities} />
           </div>
-          <div className="lg:col-span-2 flex flex-col" style={{ minHeight: "340px" }}>
+          <div className="lg:col-span-2 flex flex-col min-h-[200px] md:min-h-[280px]">
             <div
-              className="rounded-2xl flex flex-col h-full overflow-hidden"
+              className="rounded-xl flex flex-col h-full overflow-hidden"
               style={{
                 backgroundColor: "#ffffff",
-                boxShadow: "0 1px 3px rgba(26,26,24,0.06), 0 1px 2px rgba(26,26,24,0.04)",
+                boxShadow: "0 1px 2px rgba(26,26,24,0.05)",
                 border: "1px solid rgba(212,197,169,0.5)",
               }}
             >
-              <div className="px-6 py-4 border-b shrink-0" style={{ borderColor: "rgba(212,197,169,0.4)" }}>
+              <div
+                className="px-4 py-2.5 border-b shrink-0"
+                style={{ borderColor: "rgba(212,197,169,0.4)" }}
+              >
                 <h2
-                  className="font-semibold text-base"
-                  style={{ color: "var(--color-tierra)", fontFamily: "var(--font-playfair), Georgia, serif" }}
+                  className="font-semibold text-sm"
+                  style={{
+                    color: "var(--color-tierra)",
+                    fontFamily: "var(--font-playfair), Georgia, serif",
+                  }}
                 >
-                  Mapa del establecimiento
+                  Mapa
                 </h2>
               </div>
-              <div className="flex-1 relative overflow-hidden rounded-b-2xl">
+              <div className="flex-1 relative overflow-hidden rounded-b-xl min-h-[180px]">
                 <MiniMapCard potreros={potrerosForMap} />
               </div>
             </div>
