@@ -35,12 +35,15 @@ function titleFor(path: string) {
 export function AppShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [sidebarPath, setSidebarPath] = useState(pathname);
   const [initials, setInitials] = useState("··");
   const showShell = !NO_SHELL.includes(pathname);
 
-  useEffect(() => {
-    setSidebarOpen(false);
-  }, [pathname]);
+  // Cerrar drawer al navegar (ajuste de estado al cambiar pathname, sin effect)
+  if (pathname !== sidebarPath) {
+    setSidebarPath(pathname);
+    if (sidebarOpen) setSidebarOpen(false);
+  }
 
   useEffect(() => {
     if (!showShell) return;
@@ -75,12 +78,13 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         />
       )}
 
-      {/* Sidebar — drawer mobile / fijo desktop */}
+      {/* Sidebar — drawer mobile / fijo desktop.
+          h-full + max 100dvh: el pie (usuario/salir) no queda bajo bottom nav ni home indicator.
+          z-50 > bottom nav z-40. */}
       <div
-        className={`fixed inset-y-0 left-0 z-50 shrink-0 sidebar-slide md:static md:z-auto ${
+        className={`fixed inset-y-0 left-0 z-50 h-[100dvh] max-h-[100dvh] shrink-0 sidebar-slide md:static md:h-auto md:max-h-none md:z-auto ${
           sidebarOpen ? "translate-x-0" : "-translate-x-full md:translate-x-0"
         }`}
-        style={{ paddingTop: "env(safe-area-inset-top, 0px)" }}
       >
         <Sidebar onClose={() => setSidebarOpen(false)} />
       </div>
@@ -151,7 +155,8 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         </div>
       </main>
 
-      <MobileBottomNav onMore={() => setSidebarOpen(true)} />
+      {/* Ocultar bottom nav con el drawer abierto: si no, tapa usuario/salir */}
+      {!sidebarOpen && <MobileBottomNav onMore={() => setSidebarOpen(true)} />}
     </div>
   );
 }
