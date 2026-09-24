@@ -16,8 +16,24 @@ const inter = Inter({
 });
 
 export const metadata: Metadata = {
-  title: "La Makeka AI",
-  description: "Gestión ganadera premium con inteligencia artificial",
+  title: "La Makeka",
+  description: "Gestión de campo — hacienda, manga y potreros",
+  appleWebApp: {
+    capable: true,
+    title: "La Makeka",
+    statusBarStyle: "default",
+  },
+  formatDetection: {
+    telephone: false,
+  },
+};
+
+export const viewport = {
+  width: "device-width",
+  initialScale: 1,
+  maximumScale: 1,
+  viewportFit: "cover",
+  themeColor: "#3A4A32",
 };
 
 export default function RootLayout({
@@ -30,7 +46,7 @@ export default function RootLayout({
       lang="es"
       className={`${playfairDisplay.variable} ${inter.variable} h-full`}
     >
-      <body className="h-full antialiased">
+      <body className="h-full antialiased touch-manipulation">
         <AppShell>{children}</AppShell>
       </body>
     </html>

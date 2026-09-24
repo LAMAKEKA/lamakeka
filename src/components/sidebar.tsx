@@ -20,17 +20,18 @@ import {
 } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 
+/** Orden mobile-first: trabajo de campo primero */
 const navItems = [
-  { href: "/", label: "Dashboard", icon: LayoutDashboard },
+  { href: "/", label: "Inicio", icon: LayoutDashboard },
+  { href: "/manga", label: "Manga", icon: ScanLine },
   { href: "/hacienda", label: "Hacienda", icon: Beef },
-  { href: "/produccion", label: "Producción", icon: Egg },
   { href: "/potreros", label: "Potreros", icon: Map },
+  { href: "/senasa", label: "SENASA", icon: ShieldCheck },
+  { href: "/produccion", label: "Producción", icon: Egg },
   { href: "/insumos", label: "Insumos", icon: Package },
-  { href: "/tareas", label: "Tareas", icon: CheckSquare },
   { href: "/finanzas", label: "Finanzas", icon: BarChart2 },
   { href: "/reportes", label: "Reportes", icon: PieChart },
-  { href: "/manga", label: "Manga", icon: ScanLine },
-  { href: "/senasa", label: "SENASA", icon: ShieldCheck },
+  { href: "/tareas", label: "Tareas", icon: CheckSquare },
 ];
 
 const secondaryItems = [
@@ -73,7 +74,7 @@ export function Sidebar({ onClose }: SidebarProps) {
 
   return (
     <aside
-      className="w-60 h-screen flex flex-col shrink-0"
+      className="w-[min(18rem,85vw)] md:w-60 h-screen flex flex-col shrink-0"
       style={{ backgroundColor: "var(--color-campo)" }}
     >
       {/* Logo */}
@@ -112,7 +113,7 @@ export function Sidebar({ onClose }: SidebarProps) {
               key={href}
               href={href}
               onClick={() => onClose?.()}
-              className="flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all duration-150"
+              className="flex items-center gap-3 px-3 py-3 rounded-xl text-sm font-medium transition-all duration-150 min-h-[48px] touch-manipulation"
               style={{
                 backgroundColor: isActive ? "rgba(255,255,255,0.18)" : "transparent",
                 color: isActive ? "#ffffff" : "rgba(255,255,255,0.55)",
