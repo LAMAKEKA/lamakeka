@@ -255,7 +255,7 @@ export declare const MAKEKA_LEGACY_MODULES: ModuleId[]; // = sidebar actual
 export declare const PLATFORM_DEMO_MODULES: ModuleId[];
 ```
 
-- [ ] **Step 1:** Write failing tests en `registry.test.ts`:
+- [x] **Step 1:** Write failing tests en `registry.test.ts`:
 
 ```ts
 import { describe, it, expect } from "vitest";
@@ -285,8 +285,8 @@ describe("filterModules", () => {
 });
 ```
 
-- [ ] **Step 2:** `npm test -- src/lib/modules/registry.test.ts` → FAIL
-- [ ] **Step 3:** Implement registry alineado a nav actual:
+- [x] **Step 2:** `npm test -- src/lib/modules/registry.test.ts` → FAIL
+- [x] **Step 3:** Implement registry alineado a nav actual:
 
 | id | href | label | bottomNavOrder |
 |----|------|-------|----------------|
@@ -303,8 +303,8 @@ describe("filterModules", () => {
 | tareas | `/tareas` | Tareas | more |
 | whatsapp | `/whatsapp` | WhatsApp Bot | secondary |
 
-- [ ] **Step 4:** `npm test` PASS + `npm run typecheck`
-- [ ] **Step 5:** Commit
+- [x] **Step 4:** `npm test` PASS + `npm run typecheck`
+- [x] **Step 5:** Commit
 
 ```bash
 git commit --author="lamakeka2026 <lamakeka2026@gmail.com>" \
