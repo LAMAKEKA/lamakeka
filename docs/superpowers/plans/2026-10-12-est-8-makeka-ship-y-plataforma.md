@@ -191,64 +191,14 @@ No código salvo bugs blocker encontrados (entonces PR `fix/…` aparte, 1 bug =
 **Files:**
 
 - Create: `supabase/migrations/20261012000000_establecimiento_platform_config.sql`
+- Ops: `docs/superpowers/ops/2026-10-12-cloud-platform-config-20261012-status.md`
 
-- [ ] **Step 1:** Escribir migración idempotente:
+- [x] **Step 1:** Migración idempotente en repo (backfill `rubros` por `tipo`; `modules_enabled` solo si vacío vía `cardinality`).
+- [x] **Step 2:** APPLY SQL Editor humano 2026-10-12 — pre-VERIFY `42703 nombre_display` ausente; post-APPLY columnas vistas (`nombre_display`, `logo_url`, `tagline`, `rubros`, `modules_enabled`, `is_platform_demo`, + `slug`/`brand_theme` en mismo run).
+- [x] **Step 3:** Docs status **`cloud 20261012 platform: aplicada`** + PR.
 
-```sql
--- EST-8 platform config on establecimientos
-ALTER TABLE public.establecimientos
-  ADD COLUMN IF NOT EXISTS slug text,
-  ADD COLUMN IF NOT EXISTS nombre_display text,
-  ADD COLUMN IF NOT EXISTS logo_url text,
-  ADD COLUMN IF NOT EXISTS rubros text[] NOT NULL DEFAULT ARRAY['ganaderia']::text[],
-  ADD COLUMN IF NOT EXISTS modules_enabled text[] NOT NULL DEFAULT ARRAY[]::text[],
-  ADD COLUMN IF NOT EXISTS brand_theme jsonb,
-  ADD COLUMN IF NOT EXISTS is_platform_demo boolean NOT NULL DEFAULT false,
-  ADD COLUMN IF NOT EXISTS tagline text;
-
-CREATE UNIQUE INDEX IF NOT EXISTS establecimientos_slug_unique
-  ON public.establecimientos (slug)
-  WHERE slug IS NOT NULL;
-
--- Backfill display + Makeka-safe modules (nav actual, cero regresión)
-UPDATE public.establecimientos e
-SET
-  nombre_display = COALESCE(e.nombre_display, e.nombre),
-  logo_url = COALESCE(e.logo_url, '/logo-makeka.png'),
-  tagline = COALESCE(e.tagline, 'AI · Ganadera'),
-  rubros = CASE
-    WHEN e.rubros IS NOT NULL AND array_length(e.rubros, 1) >= 1 THEN e.rubros
-    WHEN e.tipo = 'agricola' THEN ARRAY['agricola']::text[]
-    WHEN e.tipo = 'mixto' THEN ARRAY['ganaderia','agricola']::text[]
-    ELSE ARRAY['ganaderia']::text[]
-  END,
-  modules_enabled = CASE
-    WHEN e.modules_enabled IS NOT NULL AND array_length(e.modules_enabled, 1) >= 1
-      THEN e.modules_enabled
-    WHEN e.tipo = 'agricola' THEN ARRAY[
-      'inicio','agricola','insumos','finanzas','reportes','tareas'
-    ]::text[]
-    WHEN e.tipo = 'mixto' THEN ARRAY[
-      'inicio','manga','hacienda','potreros','senasa','agricola',
-      'produccion_huevos','insumos','finanzas','reportes','tareas'
-    ]::text[]
-    ELSE ARRAY[
-      'inicio','manga','hacienda','potreros','senasa',
-      'produccion_huevos','insumos','finanzas','reportes','tareas'
-    ]::text[]
-  END
-WHERE true;
-```
-
-- [ ] **Step 2:** PR con instrucciones SQL Editor (mismo protocolo Task 1). **No** afirmar aplicada en cloud.
-- [ ] **Step 3:** Commit
-
-```bash
-git commit --author="lamakeka2026 <lamakeka2026@gmail.com>" \
-  -m "feat: columnas platform config en establecimientos"
-```
-
-**Done when:** SQL en repo; backfill preserva nav Makeka; UNIQUE user_id intacto.
+**Done when:** SQL en repo; backfill preserva nav Makeka; UNIQUE user_id intacto.  
+**Status 2026-10-12:** aplicada en cloud `szffikjajxqxawxavshw`. App aún no lee cols (Task 5+).
 
 ---
 
