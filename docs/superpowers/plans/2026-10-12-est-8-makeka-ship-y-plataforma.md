@@ -100,27 +100,10 @@ EOF
 - Modify (opcional): `docs/superpowers/plans/2026-10-12-est-8-makeka-ship-y-plataforma.md` sección “Cloud status”
 - No cambiar SQL de `20260923000000_…` salvo bug real
 
-- [ ] **Step 1:** En Supabase SQL Editor (humano o agent con acceso), correr:
-
-```sql
-SELECT column_name, data_type
-FROM information_schema.columns
-WHERE table_schema = 'public'
-  AND table_name = 'manga_animales'
-  AND column_name IN ('estado', 'updated_at', 'updated_by');
-
-SELECT to_regclass('public.animal_eventos') AS animal_eventos;
-```
-
-- [ ] **Step 2:** Si falta, aplicar íntegro el archivo  
-  `supabase/migrations/20260923000000_manga_hacienda_integracion.sql` vía SQL Editor.
-- [ ] **Step 3:** Documentar en PR body: `cloud 20260923: aplicada | pendiente` + fecha. **No** inventar.
-- [ ] **Step 4:** Commit solo si hay nota en docs:
-
-```bash
-git commit --author="lamakeka2026 <lamakeka2026@gmail.com>" \
-  -m "docs: status migración manga-hacienda en cloud"
-```
+- [x] **Step 1:** VERIFY en cloud `szffikjajxqxawxavshw` (2026-10-12) vía PostgREST service role — ver § Cloud status (Task 1).
+- [x] **Step 2:** APPLY **no necesario** — columnas + tabla ya expuestas (HTTP 200).
+- [x] **Step 3:** Documentado: `cloud 20260923: aplicada`.
+- [x] **Step 4:** Commit docs status (este PR Task 1).
 
 **Done when:** Status explícito en PR; HaciendaPorAnimal deja de mostrar warning de migración si se aplicó.
 
@@ -591,8 +574,20 @@ const payload = {
 
 | Migración | Repo | Cloud `szffik…` | Fecha check |
 |-----------|------|-----------------|-------------|
-| `20260923000000_manga_hacienda_integracion.sql` | sí | _pendiente verificar_ | |
+| `20260923000000_manga_hacienda_integracion.sql` | sí | **aplicada** | 2026-10-12 |
 | `20261012000000_establecimiento_platform_config.sql` | Task 4 | _pendiente_ | |
+
+## Cloud status (Task 1)
+
+| Item | Valor |
+|------|--------|
+| Project ref | `szffikjajxqxawxavshw` |
+| Migración | `20260923000000_manga_hacienda_integracion.sql` |
+| Status | **`aplicada`** |
+| Verificado | 2026-10-12 |
+| Evidence | PostgREST (service role, host del project ref): `GET /rest/v1/manga_animales?select=estado` → **200**; `select=updated_at,updated_by` → **200**; `GET /rest/v1/animal_eventos?select=id` → **200**. Bodies `[]` (sin filas o vacíos), no error de columna/relación inexistente (PostgREST 400/PGRST si faltara schema). |
+| Acción humana | APPLY SQL Editor: **no** (ya presente). Re-VERIFY SQL Editor opcional con el bloque del handoff Task 1 si se quiere constraint/RLS explícitos. |
+| Nota método | Agent no usó Dashboard SQL Editor; verify vía API REST del mismo project. No secrets en este doc. |
 
 ---
 
