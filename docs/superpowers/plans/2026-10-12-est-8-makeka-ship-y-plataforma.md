@@ -154,26 +154,33 @@ git commit --author="lamakeka2026 <lamakeka2026@gmail.com>" \
 
 No código salvo bugs blocker encontrados (entonces PR `fix/…` aparte, 1 bug = 1 PR).
 
-- [ ] **Step 1:** Login user Makeka real (credenciales del dueño, no commitear).
-- [ ] **Step 2:** Checklist manual:
+- [x] **Step 1:** Login user Makeka real — **parcial:** sin credenciales en sesión agente; UI `/login` OK; campo live **BLOCKED** (humano).
+- [x] **Step 2:** Checklist — ver ops completo:
+
+`docs/superpowers/ops/2026-10-12-smoke-makeka-est-8-task-3.md`  
+(auto: test/typecheck/curl/gate code; browser login; campo UI BLOCKED)
 
 | Flujo | OK? | Nota |
 |-------|-----|------|
-| Home carga métricas | | |
-| Manga: scan/HID path UI | | |
-| Alta animal cat+potrero | | |
-| Hacienda por-animal lista | | |
-| Ficha + egreso saca stock | | |
-| Hacienda por-cantidad intacta | | |
-| Potreros cabezas EID | | |
-| SENASA export stock | | |
-| Bottom nav + logout mobile | | |
-| Offline queue no rompe | | |
+| Home carga métricas | BLOCKED | falta sesión dueño |
+| Manga: scan/HID path UI | OK code / BLOCKED UI | `useHidCapture`; bastón SKIP |
+| Alta animal cat+potrero | OK code | cat obligatoria; sin potrero → sin_ubicar |
+| Hacienda por-animal lista | OK code / BLOCKED UI | default tab EID |
+| Ficha + egreso saca stock | OK code / BLOCKED UI | AnimalFichaDrawer |
+| Hacienda por-cantidad intacta | OK code | tabs duales |
+| Potreros cabezas EID | OK code / BLOCKED UI | ESTADOS_STOCK |
+| SENASA export stock | OK code / BLOCKED UI | incluirBajas |
+| Bottom nav + logout mobile | OK code | #13/#14 |
+| Offline queue no rompe | OK code / SKIP cola | |
+| Auth gate `/`→login | OK | 307 |
+| Setup gate #17 | OK code | proxy + callback |
+| test+typecheck | OK | 33 tests; tsc 0 |
 
-- [ ] **Step 3:** Bugs P0 → branches `fix/est-8-…` chicos. P2+ → listar en EST-8 sin bloquear Fase B.
-- [ ] **Step 4:** Commit docs smoke results si aplica.
+- [x] **Step 3:** Bugs P0 → ninguno evidenciado. P2 N1: RFID sin cookie 307 login (doc ops). Campo live = follow-up humano.
+- [x] **Step 4:** Docs smoke results (este PR).
 
-**Done when:** Tabla smoke en PR/EST-8; blockers triageados.
+**Done when:** Tabla smoke en PR/EST-8; blockers triageados.  
+**Status 2026-10-12:** go Fase B con caveat smoke campo humano pendiente (no P0).
 
 ---
 
