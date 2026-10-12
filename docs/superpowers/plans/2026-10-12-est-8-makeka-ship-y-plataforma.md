@@ -369,10 +369,10 @@ export declare function applyDemoEmailFallback(
 // Si email demo y config existe → force isPlatformDemo visuals only if flag set.
 ```
 
-- [ ] **Step 1:** Tests de `mapEstablecimientoRow` defaults (logo Makeka, tagline, modules vacíos → defaults por tipo).
-- [ ] **Step 2:** Implement.
-- [ ] **Step 3:** `npm test` + typecheck.
-- [ ] **Step 4:** Commit `feat: resolveTenant y TenantConfig`
+- [x] **Step 1:** Tests de `mapEstablecimientoRow` defaults (logo Makeka, tagline, modules vacíos → defaults por tipo).
+- [x] **Step 2:** Implement.
+- [x] **Step 3:** `npm test` + typecheck.
+- [x] **Step 4:** Commit `feat: resolveTenant y TenantConfig`
 
 **Done when:** mapping puro testeado; email constant en un solo file.
 
