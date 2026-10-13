@@ -1,0 +1,83 @@
+import { describe, it, expect } from "vitest";
+import {
+  buildEstablecimientoInsert,
+  toLegacyEstablecimientoInsert,
+  isUniqueViolation,
+} from "./buildEstablecimientoInsert";
+import {
+  defaultModulesForTipo,
+  defaultRubrosForTipo,
+  MAKEKA_LEGACY_MODULES,
+} from "@/lib/modules/defaults";
+import { PLATFORM_DEMO_EMAIL } from "./platformDemo";
+
+const base = {
+  nombre: "  Campo San José  ",
+  ubicacion: "  Córdoba  ",
+  userId: "user-1",
+  email: "owner@example.com",
+};
+
+describe("buildEstablecimientoInsert", () => {
+  it("ganadero → MAKEKA_LEGACY modules + ganaderia rubro", () => {
+    const p = buildEstablecimientoInsert({ ...base, tipo: "ganadero" });
+    expect(p.nombre).toBe("Campo San José");
+    expect(p.ubicacion).toBe("Córdoba");
+    expect(p.tipo).toBe("ganadero");
+    expect(p.user_id).toBe("user-1");
+    expect(p.nombre_display).toBe("Campo San José");
+    expect(p.logo_url).toBe("/logo-makeka.png");
+    expect(p.tagline).toBe("AI · Ganadera");
+    expect(p.modules_enabled).toEqual([...MAKEKA_LEGACY_MODULES]);
+    expect(p.rubros).toEqual(defaultRubrosForTipo("ganadero"));
+    expect(p.is_platform_demo).toBe(false);
+  });
+
+  it("agricola → sin manga + tagline Campo", () => {
+    const p = buildEstablecimientoInsert({ ...base, tipo: "agricola" });
+    expect(p.tagline).toBe("AI · Campo");
+    expect(p.modules_enabled).toEqual([...defaultModulesForTipo("agricola")]);
+    expect(p.modules_enabled).not.toContain("manga");
+    expect(p.rubros).toEqual(["agricola"]);
+  });
+
+  it("mixto → ganadería + agrícola modules", () => {
+    const p = buildEstablecimientoInsert({ ...base, tipo: "mixto" });
+    expect(p.tagline).toBe("AI · Mixto");
+    expect(p.modules_enabled).toEqual([...defaultModulesForTipo("mixto")]);
+    expect(p.modules_enabled).toContain("manga");
+    expect(p.modules_enabled).toContain("agricola");
+    expect(p.rubros).toEqual(["ganaderia", "agricola"]);
+  });
+
+  it("demo email → is_platform_demo true (case-insensitive)", () => {
+    const p = buildEstablecimientoInsert({
+      ...base,
+      tipo: "ganadero",
+      email: "  TestPrueba@Gmail.com  ",
+    });
+    expect(p.is_platform_demo).toBe(true);
+    expect(PLATFORM_DEMO_EMAIL).toBe("testprueba@gmail.com");
+  });
+});
+
+describe("toLegacyEstablecimientoInsert", () => {
+  it("strips platform cols", () => {
+    const full = buildEstablecimientoInsert({ ...base, tipo: "mixto" });
+    expect(toLegacyEstablecimientoInsert(full)).toEqual({
+      nombre: full.nombre,
+      ubicacion: full.ubicacion,
+      tipo: full.tipo,
+      user_id: full.user_id,
+    });
+  });
+});
+
+describe("isUniqueViolation", () => {
+  it("detects 23505 and message patterns", () => {
+    expect(isUniqueViolation({ code: "23505" })).toBe(true);
+    expect(isUniqueViolation({ message: "duplicate key value" })).toBe(true);
+    expect(isUniqueViolation({ message: "unique constraint" })).toBe(true);
+    expect(isUniqueViolation({ code: "42703", message: "column" })).toBe(false);
+  });
+});

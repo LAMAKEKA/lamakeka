@@ -415,7 +415,7 @@ export declare function applyDemoEmailFallback(
 
 - Modify: `src/app/setup/page.tsx`
 
-- [ ] **Step 1:** Al insertar establecimiento, setear:
+- [x] **Step 1:** Al insertar establecimiento, setear:
 
 ```ts
 import { defaultModulesForTipo, defaultRubrosForTipo } from "@/lib/modules/defaults";
@@ -434,8 +434,8 @@ const payload = {
 };
 ```
 
-- [ ] **Step 2:** Si columnas no migradas en cloud, catch y insert mínimo legacy (nombre, ubicacion, tipo, user_id) + mensaje “actualizá schema”.
-- [ ] **Step 3:** typecheck + commit `feat: setup setea modules_enabled por tipo`
+- [x] **Step 2:** Si columnas no migradas en cloud, catch y insert mínimo legacy (nombre, ubicacion, tipo, user_id) + mensaje “actualizá schema”.
+- [x] **Step 3:** typecheck + commit `feat: setup setea modules_enabled por tipo`
 
 **Done when:** nuevo estab agrícola no habilita manga en config (aunque cloud nav lo respete post Task 7).
 
