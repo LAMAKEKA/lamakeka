@@ -451,7 +451,7 @@ const payload = {
 - Create: `supabase/seed/platform_demo.md` (instrucciones; **sin** password)
 - Modify: registry already has agricola (Task 5)
 
-- [ ] **Step 1:** Page client o server simple:
+- [x] **Step 1:** Page client o server simple:
 
 ```tsx
 // Placeholder gated: si tenant sin módulo agricola, redirect /
@@ -459,7 +459,7 @@ const payload = {
 // Sin fake data productiva.
 ```
 
-- [ ] **Step 2:** `platform_demo.md` pasos:
+- [x] **Step 2:** `platform_demo.md` pasos:
 
 ```markdown
 # Seed platform demo
@@ -477,7 +477,7 @@ const payload = {
 4. Smoke: login demo → nav sin manga/senasa si no en array; Makeka user intacto
 ```
 
-- [ ] **Step 3:** typecheck + commit `feat: stub agricola y docs seed demo`
+- [x] **Step 3:** typecheck + commit `feat: stub agricola y docs seed demo`
 
 **Done when:** ruta existe; seed documentado; user demo **creado sí/no** declarado en PR body.
 
