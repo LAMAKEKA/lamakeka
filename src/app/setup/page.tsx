@@ -5,6 +5,12 @@ import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { Loader2, AlertCircle, Check } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
+import {
+  buildEstablecimientoInsert,
+  isUniqueViolation,
+  toLegacyEstablecimientoInsert,
+} from "@/lib/tenant/buildEstablecimientoInsert";
+import type { EstablecimientoTipo } from "@/lib/tenant/types";
 
 const PROVINCIAS = [
   "Buenos Aires",
@@ -32,9 +38,12 @@ const PROVINCIAS = [
   "Tucumán",
 ];
 
-type TipoCampo = "ganadero" | "agricola" | "mixto";
-
-const TIPOS: { id: TipoCampo; label: string; desc: string; emoji: string }[] = [
+const TIPOS: {
+  id: EstablecimientoTipo;
+  label: string;
+  desc: string;
+  emoji: string;
+}[] = [
   {
     id: "ganadero",
     label: "Ganadero",
@@ -58,7 +67,7 @@ const TIPOS: { id: TipoCampo; label: string; desc: string; emoji: string }[] = [
 export default function SetupPage() {
   const [nombre, setNombre] = useState("");
   const [ubicacion, setUbicacion] = useState("");
-  const [tipo, setTipo] = useState<TipoCampo | null>(null);
+  const [tipo, setTipo] = useState<EstablecimientoTipo | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const router = useRouter();
@@ -82,12 +91,42 @@ export default function SetupPage() {
       return;
     }
 
-    const { error: dbError } = await supabase.from("establecimientos").insert({
+    const fullPayload = buildEstablecimientoInsert({
       nombre,
       ubicacion,
       tipo,
-      user_id: user.id,
+      userId: user.id,
+      email: user.email,
     });
+
+    let { error: dbError } = await supabase
+      .from("establecimientos")
+      .insert(fullPayload);
+
+    if (dbError) {
+      if (isUniqueViolation(dbError)) {
+        setError("Ya tenés un establecimiento. Redirigiendo…");
+        router.push("/");
+        router.refresh();
+        return;
+      }
+
+      const legacyRes = await supabase
+        .from("establecimientos")
+        .insert(toLegacyEstablecimientoInsert(fullPayload));
+
+      if (legacyRes.error) {
+        setError("No se pudo guardar el establecimiento. Intentá de nuevo.");
+        setLoading(false);
+        return;
+      }
+
+      console.warn(
+        "[setup] insert platform cols failed; saved legacy row only",
+        dbError.message
+      );
+      dbError = null;
+    }
 
     if (dbError) {
       setError("No se pudo guardar el establecimiento. Intentá de nuevo.");
