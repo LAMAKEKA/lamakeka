@@ -107,13 +107,14 @@ export default function RegisterPage() {
     const supabase = createClient();
 
     const { error: authError } = await supabase.auth.signUp({
-      email: form.email,
+      email: form.email.trim(),
       password: form.password,
       options: {
         data: {
-          nombre: form.nombre,
-          apellido: form.apellido,
-          whatsapp: form.whatsapp,
+          nombre: form.nombre.trim(),
+          apellido: form.apellido.trim(),
+          full_name: `${form.nombre.trim()} ${form.apellido.trim()}`.trim(),
+          whatsapp: form.whatsapp.trim(),
         },
         emailRedirectTo: `${window.location.origin}/auth/callback`,
       },
