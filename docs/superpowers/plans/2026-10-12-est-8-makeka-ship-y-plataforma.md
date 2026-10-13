@@ -485,26 +485,28 @@ const payload = {
 
 ### Task 10: Cierre EST-8 + Linear
 
-**Branch:** n/a (comentario) o `docs/est-8-cierre`
+**Branch:** `docs/est-8-cierre`
 
-- [ ] **Step 1:** Checklist done del handoff:
+**Ops:** `docs/superpowers/ops/2026-10-13-est-8-cierre.md`
+
+- [x] **Step 1:** Checklist done del handoff (detalle en ops cierre):
 
 ```text
-- [ ] PR docs Fase 0
-- [ ] Gaps críticos cerrados o severity+split
-- [ ] Migración cloud status documentado
-- [ ] Module registry + nav data-driven
-- [ ] Config tenant migración + defaults Makeka
-- [ ] testprueba rutea genérico
-- [ ] Makeka users experiencia actual
-- [ ] Smoke localhost
-- [ ] EST-8 actualizado con links PRs
+- [x] PR docs Fase 0 (#15)
+- [x] Gaps críticos cerrados o severity+split (P0 ok; campo live BLOCKED #18; P2 fuera)
+- [x] Migración cloud status documentado (20260923 + 20261012 aplicadas)
+- [x] Module registry + nav data-driven (#20–#22)
+- [x] Config tenant migración + defaults Makeka (#19 + #23)
+- [x] testprueba rutea genérico — DOC only (#24 seed); Auth user: no
+- [x] Makeka users experiencia actual — OK code; smoke visual dueño pendiente humano
+- [x] Smoke localhost — auto OK (#18); campo BLOCKED
+- [x] EST-8 actualizado con links PRs (ops + comment Linear + este PR)
 ```
 
-- [ ] **Step 2:** Si Linear EST-8 no resoluble por API, body del último PR lista URLs.
-- [ ] **Step 3:** Proponer split EST-8a/8b solo si quedó trabajo gordo pending.
+- [x] **Step 2:** Linear comment + body PR #15–#24 (+ este).
+- [x] **Step 3:** Split EST-8a/8b **no** — spike MVP config listo; residuales = issues nuevos (G4/G5/G7–G9, agrícola real, EST-5).
 
-**Done when:** humano tiene URLs PRs, SQL pendiente, y “user demo creado: sí/no”.
+**Done when:** humano tiene URLs PRs, SQL pendiente (**ninguno** DDL EST-8), y “user demo creado: **no**”.
 
 ---
 
@@ -532,7 +534,7 @@ const payload = {
 | Migración | Repo | Cloud `szffik…` | Fecha check |
 |-----------|------|-----------------|-------------|
 | `20260923000000_manga_hacienda_integracion.sql` | sí | **aplicada** | 2026-10-12 |
-| `20261012000000_establecimiento_platform_config.sql` | Task 4 | _pendiente_ | |
+| `20261012000000_establecimiento_platform_config.sql` | sí (#19) | **aplicada** | 2026-10-12 |
 
 ## Cloud status (Task 1)
 
