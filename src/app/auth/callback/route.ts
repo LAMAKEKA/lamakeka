@@ -13,7 +13,8 @@ function safeNextPath(next: string | null): string {
 
 async function resolvePostAuthDest(
   supabase: ReturnType<typeof createServerClient>,
-  next: string
+  next: string,
+  type: string | null
 ): Promise<string> {
   const {
     data: { user },
@@ -21,6 +22,11 @@ async function resolvePostAuthDest(
 
   if (!user) {
     return "/login?error=auth_callback_error";
+  }
+
+  // Password recovery: always land on reset form (skip setup gate).
+  if (type === "recovery" || next === "/reset-password") {
+    return "/reset-password";
   }
 
   const has = await hasEstablecimientoForUser(supabase, user.id);
@@ -58,7 +64,7 @@ export async function GET(request: NextRequest) {
       type: type as EmailOtpType,
     });
     if (!error) {
-      const dest = await resolvePostAuthDest(supabase, next);
+      const dest = await resolvePostAuthDest(supabase, next, type);
       return NextResponse.redirect(`${origin}${dest}`);
     }
   }
@@ -66,7 +72,7 @@ export async function GET(request: NextRequest) {
   if (code) {
     const { error } = await supabase.auth.exchangeCodeForSession(code);
     if (!error) {
-      const dest = await resolvePostAuthDest(supabase, next);
+      const dest = await resolvePostAuthDest(supabase, next, type);
       return NextResponse.redirect(`${origin}${dest}`);
     }
   }
