@@ -1,10 +1,15 @@
 "use client";
 
 import { useState, useEffect, useCallback, useMemo } from "react";
-import { Plus, Map, FileSpreadsheet, ImageIcon, Upload, MoreHorizontal, Beef, X, Loader2, AlertCircle } from "lucide-react";
+import { Plus, Map as MapIcon, FileSpreadsheet, ImageIcon, Upload, MoreHorizontal, Beef, X, Loader2, AlertCircle } from "lucide-react";
 import dynamic from "next/dynamic";
 import { createClient } from "@/lib/supabase/client";
 import { ESTADOS_STOCK, countByPotrero } from "@/lib/haciendaStock";
+import {
+  mapAnimalEventosToPotreroHistorial,
+  POTRERO_HISTORIAL_TIPOS,
+  type PotreroHistorialRow,
+} from "@/lib/potreroHistorial";
 import { usePotreros } from "@/hooks/usePotreros";
 import { useSupabaseManga, type MangaAnimal, type UpdateAnimalPayload } from "@/hooks/useSupabaseManga";
 import { AnimalFichaDrawer } from "@/components/hacienda/AnimalFichaDrawer";
@@ -33,14 +38,7 @@ interface Potrero {
   longitud: number | null;
 }
 
-interface HistorialRow {
-  id: string;
-  potrero: string;
-  evento: string;
-  fecha: string;
-  detalle: string;
-  responsable: string;
-}
+type HistorialRow = PotreroHistorialRow;
 
 const ESTADO_STYLE: Record<string, { bg: string; color: string; label: string }> = {
   activo:        { bg: "rgba(22,163,74,0.09)",  color: "#16a34a", label: "Activo" },
@@ -57,7 +55,7 @@ const TABS = [
 const CARGA_OPTIONS = [
   { icon: Plus,           iconBg: "rgba(58,74,50,0.10)",   iconColor: "var(--color-campo)", title: "Ingresar Manualmente", description: "Cargá los datos de tu potrero uno a uno" },
   { icon: FileSpreadsheet, iconBg: "rgba(37,99,235,0.08)", iconColor: "#2563eb",              title: "CSV o Excel",           description: "Importá desde una planilla existente" },
-  { icon: Map,            iconBg: "rgba(139,78,42,0.10)",  iconColor: "var(--color-cuero)", title: "KMZ de Google Earth",   description: "Usá tu archivo de trazado de potreros" },
+  { icon: MapIcon,            iconBg: "rgba(139,78,42,0.10)",  iconColor: "var(--color-cuero)", title: "KMZ de Google Earth",   description: "Usá tu archivo de trazado de potreros" },
   { icon: ImageIcon,      iconBg: "rgba(217,119,6,0.10)",  iconColor: "#d97706",              title: "Imagen de croquis",    description: "Subí una foto o plano de tu campo" },
 ];
 
@@ -252,7 +250,7 @@ function EmptyStatePotreros({ onManual }: { onManual: () => void }) {
       <div className="w-full max-w-2xl rounded-2xl p-8 mb-6" style={{ backgroundColor: "#ffffff", border: "1px solid rgba(212,197,169,0.5)", boxShadow: "0 1px 3px rgba(26,26,24,0.06)" }}>
         <div className="text-center mb-8">
           <div className="inline-flex items-center justify-center w-14 h-14 rounded-2xl mb-4" style={{ backgroundColor: "rgba(58,74,50,0.08)" }}>
-            <Map size={26} style={{ color: "var(--color-campo)" }} strokeWidth={1.5} />
+            <MapIcon size={26} style={{ color: "var(--color-campo)" }} strokeWidth={1.5} />
           </div>
           <h3 className="text-xl font-bold mb-2" style={{ color: "var(--color-tierra)", fontFamily: "var(--font-playfair), Georgia, serif" }}>Configurá tus potreros</h3>
           <p className="text-sm max-w-sm mx-auto" style={{ color: "rgba(26,26,24,0.45)" }}>Elegí cómo querés cargar la información.</p>
@@ -297,6 +295,8 @@ export default function PotrerosPage() {
   const [openMenuId, setOpenMenuId] = useState<string | null>(null);
   const [editPotrero, setEditPotrero] = useState<Potrero | null>(null);
   const [stockAnimals, setStockAnimals] = useState<HaciendaAnimalRow[]>([]);
+  const [historial, setHistorial] = useState<HistorialRow[]>([]);
+  const [historialLoading, setHistorialLoading] = useState(false);
   const [expandedPotreroId, setExpandedPotreroId] = useState<string | null>(null);
   const [selectedAnimal, setSelectedAnimal] = useState<HaciendaAnimalRow | null>(null);
   const [userName, setUserName] = useState("");
@@ -316,16 +316,6 @@ export default function PotrerosPage() {
     if (params.get("tab") === "mapa") setActiveTab("mapa");
   }, []);
 
-  // Historial placeholder (en futuro puede ser una tabla real)
-  const HISTORIAL_MOCK: HistorialRow[] = potreros.map((p) => ({
-    id: p.id,
-    potrero: p.nombre,
-    evento: "Ingreso",
-    fecha: p.desde ?? "—",
-    detalle: p.cabezas > 0 ? `${p.cabezas} cabezas (libreta)` : "Sin estimado libreta",
-    responsable: "—",
-  }));
-
   const fetchData = useCallback(async () => {
     const supabase = createClient();
     const { data: { user } } = await supabase.auth.getUser();
@@ -343,7 +333,8 @@ export default function PotrerosPage() {
     fetchPotreros(estab.id);
 
     const { data } = await supabase.from("potreros").select("*").eq("establecimiento_id", estab.id).order("created_at", { ascending: false });
-    setPotreros(data ?? []);
+    const potreroList = (data ?? []) as Potrero[];
+    setPotreros(potreroList);
 
     const { data: animals } = await supabase
       .from("manga_animales")
@@ -357,6 +348,33 @@ export default function PotrerosPage() {
         potrero_nombre: null,
       }))
     );
+
+    setHistorialLoading(true);
+    const nameMap = new Map(potreroList.map((p) => [p.id, p.nombre]));
+    const { data: eventos } = await supabase
+      .from("animal_eventos")
+      .select("id, tipo, fecha, eid, usuario, datos, created_at")
+      .eq("establecimiento_id", estab.id)
+      .in("tipo", [...POTRERO_HISTORIAL_TIPOS])
+      .order("fecha", { ascending: false })
+      .order("created_at", { ascending: false })
+      .limit(200);
+
+    setHistorial(
+      mapAnimalEventosToPotreroHistorial(
+        (eventos ?? []) as {
+          id: string;
+          tipo: string;
+          fecha: string;
+          eid: string;
+          usuario: string | null;
+          datos: Record<string, unknown> | null;
+          created_at?: string | null;
+        }[],
+        nameMap
+      )
+    );
+    setHistorialLoading(false);
     setLoading(false);
   }, [fetchPotreros]);
 
@@ -465,7 +483,7 @@ export default function PotrerosPage() {
                 {/* Summary */}
                 <div className="flex flex-wrap items-center gap-3">
                   <div className="flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium" style={{ backgroundColor: "rgba(58,74,50,0.08)", color: "var(--color-campo)" }}>
-                    <Map size={14} strokeWidth={1.8} /><span>{potreros.length} potreros</span>
+                    <MapIcon size={14} strokeWidth={1.8} /><span>{potreros.length} potreros</span>
                   </div>
                   <div className="flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium" style={{ backgroundColor: "rgba(139,78,42,0.08)", color: "var(--color-cuero)" }}>
                     <span>{totalHa.toLocaleString("es-AR")} ha</span>
@@ -615,9 +633,13 @@ export default function PotrerosPage() {
           ) : (
             /* Historial tab */
             <div className="rounded-2xl overflow-hidden" style={{ backgroundColor: "#ffffff", border: "1px solid rgba(212,197,169,0.5)", boxShadow: "0 1px 3px rgba(26,26,24,0.06)" }}>
-              {HISTORIAL_MOCK.length === 0 ? (
+              {historialLoading ? (
                 <div className="flex items-center justify-center py-16">
-                  <p className="text-sm" style={{ color: "rgba(26,26,24,0.4)" }}>Sin historial disponible.</p>
+                  <Loader2 size={22} className="animate-spin" style={{ color: "var(--color-campo)" }} />
+                </div>
+              ) : historial.length === 0 ? (
+                <div className="flex items-center justify-center py-16">
+                  <p className="text-sm" style={{ color: "rgba(26,26,24,0.4)" }}>Sin movimientos de potrero aún.</p>
                 </div>
               ) : (
                 <div className="table-wrap">
@@ -630,8 +652,8 @@ export default function PotrerosPage() {
                     </tr>
                   </thead>
                   <tbody>
-                    {HISTORIAL_MOCK.map((row, idx) => (
-                      <tr key={row.id} style={{ borderBottom: idx < HISTORIAL_MOCK.length - 1 ? "1px solid rgba(212,197,169,0.25)" : "none" }}
+                    {historial.map((row, idx) => (
+                      <tr key={row.id} style={{ borderBottom: idx < historial.length - 1 ? "1px solid rgba(212,197,169,0.25)" : "none" }}
                         onMouseEnter={(e) => { (e.currentTarget as HTMLTableRowElement).style.backgroundColor = "rgba(240,237,230,0.4)"; }}
                         onMouseLeave={(e) => { (e.currentTarget as HTMLTableRowElement).style.backgroundColor = "transparent"; }}>
                         <td className="px-6 py-4 text-sm font-medium" style={{ color: "var(--color-tierra)" }}>{row.potrero}</td>
