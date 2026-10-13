@@ -397,11 +397,11 @@ export declare function applyDemoEmailFallback(
 4. Bottom nav: modules con `bottomNavOrder` sorted; FAB manga si manga enabled else primer primary.
 5. Branding: `nombreDisplay`, `logoUrl`, `tagline`.
 
-- [ ] **Step 1:** Implement useTenant con selects literales + cast (pitfall client types).
-- [ ] **Step 2:** Reemplazar arrays hardcode; map icon string → componente lucide en un `iconMap`.
+- [x] **Step 1:** Implement useTenant con selects literales + cast (pitfall client types).
+- [x] **Step 2:** Reemplazar arrays hardcode; map icon string → componente lucide en un `iconMap`.
 - [ ] **Step 3:** Smoke visual: user Makeka ve **mismos** ítems que antes (backfill Task 4).
-- [ ] **Step 4:** `npm run typecheck` && `npm test` && prefer `npm run build`
-- [ ] **Step 5:** Commit `feat: sidebar y bottom nav desde module registry`
+- [x] **Step 4:** `npm run typecheck` && `npm test` && prefer `npm run build`
+- [x] **Step 5:** Commit `feat: sidebar y bottom nav desde module registry`
 
 **Done when:** Makeka nav idéntica en smoke; no hardcode listas de href en sidebar.
 

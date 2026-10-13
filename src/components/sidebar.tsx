@@ -4,47 +4,21 @@ import { useState, useEffect } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import {
-  LayoutDashboard,
-  Beef,
-  Egg,
-  Map,
-  Package,
-  CheckSquare,
-  BarChart2,
-  PieChart,
-  MessageCircle,
-  LogOut,
-  ScanLine,
-  ShieldCheck,
-  X,
-} from "lucide-react";
+import { LogOut, X } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
-
-/** Orden mobile-first: trabajo de campo primero */
-const navItems = [
-  { href: "/", label: "Inicio", icon: LayoutDashboard },
-  { href: "/manga", label: "Manga", icon: ScanLine },
-  { href: "/hacienda", label: "Hacienda", icon: Beef },
-  { href: "/potreros", label: "Potreros", icon: Map },
-  { href: "/senasa", label: "SENASA", icon: ShieldCheck },
-  { href: "/produccion", label: "Producción", icon: Egg },
-  { href: "/insumos", label: "Insumos", icon: Package },
-  { href: "/finanzas", label: "Finanzas", icon: BarChart2 },
-  { href: "/reportes", label: "Reportes", icon: PieChart },
-  { href: "/tareas", label: "Tareas", icon: CheckSquare },
-];
-
-const secondaryItems = [
-  { href: "/whatsapp", label: "WhatsApp Bot", icon: MessageCircle, badge: "PRONTO" },
-];
+import { filterModules, getModule } from "@/lib/modules/registry";
+import { iconFor } from "@/lib/modules/iconMap";
+import { MAKEKA_LEGACY_MODULES } from "@/lib/modules/defaults";
+import type { TenantState } from "@/hooks/useTenant";
 
 interface SidebarProps {
   onClose?: () => void;
+  tenantState?: TenantState;
 }
 
-export function Sidebar({ onClose }: SidebarProps) {
+export function Sidebar({ onClose, tenantState }: SidebarProps) {
   const pathname = usePathname();
+  const tenant = tenantState?.tenant ?? null;
 
   interface Profile {
     full_name: string | null;
@@ -78,7 +52,6 @@ export function Sidebar({ onClose }: SidebarProps) {
     try {
       const supabase = createClient();
       await supabase.auth.signOut();
-      // Full navigation: cookies/proxy + cerrar drawer mobile
       window.location.assign("/login");
     } catch {
       setSigningOut(false);
@@ -88,20 +61,32 @@ export function Sidebar({ onClose }: SidebarProps) {
   const displayName = profile.full_name?.trim() || profile.email || "Usuario";
   const initials = displayName.slice(0, 2).toUpperCase() || "MK";
 
+  const enabled =
+    tenant?.modulesEnabled?.length
+      ? tenant.modulesEnabled
+      : [...MAKEKA_LEGACY_MODULES];
+
+  const mainNav = filterModules(enabled);
+  const whatsapp = getModule("whatsapp");
+  const secondaryNav = whatsapp ? [whatsapp] : [];
+
+  const title = tenant?.nombreDisplay || "La Makeka";
+  const tagline = tenant?.tagline || "AI · Ganadera";
+  const logo = tenant?.logoUrl || "/logo-makeka.png";
+
   return (
     <aside
       className="w-[min(18rem,85vw)] md:w-60 h-full max-h-[100dvh] flex flex-col shrink-0 overflow-hidden"
       style={{ backgroundColor: "var(--color-campo)" }}
     >
-      {/* Logo + close (mobile) */}
       <div
         className="px-4 pt-4 pb-3 shrink-0"
         style={{ paddingTop: "max(1rem, env(safe-area-inset-top, 0px))" }}
       >
         <div className="flex items-center gap-2.5">
           <Image
-            src="/logo-makeka.png"
-            alt="La Makeka"
+            src={logo}
+            alt={title}
             width={40}
             height={40}
             className="rounded-xl shrink-0"
@@ -111,13 +96,13 @@ export function Sidebar({ onClose }: SidebarProps) {
               className="text-white text-lg font-bold leading-tight block truncate"
               style={{ fontFamily: "var(--font-playfair), Georgia, serif" }}
             >
-              La Makeka
+              {title}
             </span>
             <p
               className="text-[10px] tracking-[0.18em] uppercase leading-none mt-0.5"
               style={{ color: "var(--color-arpillera)", opacity: 0.7 }}
             >
-              AI · Ganadera
+              {tagline}
             </p>
           </div>
           {onClose && (
@@ -140,14 +125,15 @@ export function Sidebar({ onClose }: SidebarProps) {
 
       <div className="mx-4 border-t border-white/10 mb-2 shrink-0" />
 
-      {/* Navigation — scrollea; el pie de usuario NO */}
       <nav className="flex-1 min-h-0 px-3 space-y-0.5 overflow-y-auto overscroll-contain">
-        {navItems.map(({ href, label, icon: Icon }) => {
-          const isActive = pathname === href || (href !== "/" && pathname.startsWith(href));
+        {mainNav.map((m) => {
+          const Icon = iconFor(m.icon);
+          const isActive =
+            m.href === "/" ? pathname === "/" : pathname.startsWith(m.href);
           return (
             <Link
-              key={href}
-              href={href}
+              key={m.id}
+              href={m.href}
               onClick={() => onClose?.()}
               className="flex items-center gap-3 px-3 py-3 rounded-xl text-sm font-medium transition-all duration-150 min-h-[48px] touch-manipulation"
               style={{
@@ -157,25 +143,34 @@ export function Sidebar({ onClose }: SidebarProps) {
               }}
             >
               <Icon size={17} strokeWidth={isActive ? 2.2 : 1.6} />
-              <span className="flex-1">{label}</span>
-              {isActive && (
+              <span className="flex-1">{m.label}</span>
+              {m.badge ? (
+                <span
+                  className="text-[8px] font-bold px-1.5 py-0.5 rounded-full tracking-wide"
+                  style={{ backgroundColor: "rgba(217,119,6,0.25)", color: "#fbbf24" }}
+                >
+                  {m.badge}
+                </span>
+              ) : isActive ? (
                 <span
                   className="w-1.5 h-1.5 rounded-full shrink-0"
                   style={{ backgroundColor: "rgba(255,255,255,0.6)" }}
                 />
-              )}
+              ) : null}
             </Link>
           );
         })}
 
         <div className="mx-2 border-t border-white/10 my-2" />
 
-        {secondaryItems.map(({ href, label, icon: Icon, badge }) => {
-          const isActive = pathname === href || (href !== "/" && pathname.startsWith(href));
+        {secondaryNav.map((m) => {
+          const Icon = iconFor(m.icon);
+          const isActive =
+            m.href === "/" ? pathname === "/" : pathname.startsWith(m.href);
           return (
             <Link
-              key={href}
-              href={href}
+              key={m.id}
+              href={m.href}
               onClick={() => onClose?.()}
               className="flex items-center gap-3 px-3 py-3 rounded-xl text-sm font-medium transition-all duration-150 min-h-[48px] touch-manipulation"
               style={{
@@ -185,13 +180,13 @@ export function Sidebar({ onClose }: SidebarProps) {
               }}
             >
               <Icon size={15} strokeWidth={isActive ? 2.2 : 1.6} />
-              <span className="flex-1 text-xs">{label}</span>
-              {badge && (
+              <span className="flex-1 text-xs">{m.label}</span>
+              {m.badge && (
                 <span
                   className="text-[8px] font-bold px-1.5 py-0.5 rounded-full tracking-wide"
                   style={{ backgroundColor: "rgba(217,119,6,0.25)", color: "#fbbf24" }}
                 >
-                  {badge}
+                  {m.badge}
                 </span>
               )}
             </Link>
@@ -199,7 +194,6 @@ export function Sidebar({ onClose }: SidebarProps) {
         })}
       </nav>
 
-      {/* User + salir — siempre visible, encima del bottom nav / home indicator */}
       <div
         className="shrink-0 border-t border-white/15"
         style={{

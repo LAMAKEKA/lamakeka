@@ -2,42 +2,41 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { LayoutDashboard, Beef, ScanLine, Map, Menu } from "lucide-react";
-
-const ITEMS = [
-  {
-    href: "/",
-    label: "Inicio",
-    icon: LayoutDashboard,
-    match: (p: string) => p === "/",
-  },
-  {
-    href: "/hacienda",
-    label: "Hacienda",
-    icon: Beef,
-    match: (p: string) => p.startsWith("/hacienda"),
-  },
-  {
-    href: "/manga",
-    label: "Manga",
-    icon: ScanLine,
-    match: (p: string) => p.startsWith("/manga"),
-    fab: true,
-  },
-  {
-    href: "/potreros",
-    label: "Campo",
-    icon: Map,
-    match: (p: string) => p.startsWith("/potreros"),
-  },
-] as const;
+import { Menu } from "lucide-react";
+import { filterModules, type AppModule } from "@/lib/modules/registry";
+import { iconFor } from "@/lib/modules/iconMap";
+import { MAKEKA_LEGACY_MODULES } from "@/lib/modules/defaults";
+import type { TenantState } from "@/hooks/useTenant";
 
 interface MobileBottomNavProps {
   onMore: () => void;
+  tenantState?: TenantState;
 }
 
-export function MobileBottomNav({ onMore }: MobileBottomNavProps) {
+function bottomLabel(m: AppModule): string {
+  if (m.id === "potreros") return "Campo";
+  return m.label;
+}
+
+function isActive(pathname: string, href: string): boolean {
+  return href === "/" ? pathname === "/" : pathname.startsWith(href);
+}
+
+export function MobileBottomNav({ onMore, tenantState }: MobileBottomNavProps) {
   const pathname = usePathname();
+  const tenant = tenantState?.tenant ?? null;
+
+  const enabled =
+    tenant?.modulesEnabled?.length
+      ? tenant.modulesEnabled
+      : [...MAKEKA_LEGACY_MODULES];
+
+  const bottomItems = filterModules(enabled)
+    .filter((m) => m.bottomNavOrder != null)
+    .sort((a, b) => (a.bottomNavOrder ?? 0) - (b.bottomNavOrder ?? 0))
+    .slice(0, 4);
+
+  const hasMangaFab = bottomItems.some((m) => m.id === "manga");
 
   return (
     <nav
@@ -52,17 +51,18 @@ export function MobileBottomNav({ onMore }: MobileBottomNavProps) {
       }}
       aria-label="Navegación"
     >
-      {/* height fija: el FAB no empuja ni recorta el label */}
       <div className="grid grid-cols-5 h-14 max-w-lg mx-auto items-end px-0.5">
-        {ITEMS.map(({ href, label, icon: Icon, match, ...rest }) => {
-          const fab = "fab" in rest && rest.fab;
-          const active = match(pathname);
+        {bottomItems.map((m) => {
+          const Icon = iconFor(m.icon);
+          const label = bottomLabel(m);
+          const active = isActive(pathname, m.href);
+          const fab = hasMangaFab && m.id === "manga";
 
           if (fab) {
             return (
               <Link
-                key={href}
-                href={href}
+                key={m.id}
+                href={m.href}
                 className="flex flex-col items-center justify-end pb-1.5 gap-0.5 relative h-14 touch-manipulation"
               >
                 <span
@@ -74,7 +74,6 @@ export function MobileBottomNav({ onMore }: MobileBottomNavProps) {
                 >
                   <Icon size={20} strokeWidth={2.2} />
                 </span>
-                {/* spacer so label sits like the others */}
                 <span className="h-5 block" aria-hidden />
                 <span
                   className="text-[10px] font-semibold leading-none"
@@ -88,8 +87,8 @@ export function MobileBottomNav({ onMore }: MobileBottomNavProps) {
 
           return (
             <Link
-              key={href}
-              href={href}
+              key={m.id}
+              href={m.href}
               className="flex flex-col items-center justify-end pb-1.5 gap-0.5 h-14 min-w-0 touch-manipulation"
               style={{ color: active ? "var(--color-campo)" : "rgba(26,26,24,0.4)" }}
             >
