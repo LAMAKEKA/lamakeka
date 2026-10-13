@@ -51,13 +51,17 @@ export async function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
   const isAuthEntry =
-    pathname === "/login" || pathname === "/register";
+    pathname === "/login" ||
+    pathname === "/register" ||
+    pathname === "/forgot-password";
+  /** Recovery session: user is signed in but must set password before setup gate. */
+  const isResetPassword = pathname === "/reset-password";
   const isCallback =
     pathname === "/auth/callback" || pathname.startsWith("/auth/");
   const isPublicApi = pathname === "/api/ping-db";
   const isApiPath = pathname.startsWith("/api/");
 
-  if (!user && !isAuthEntry && !isCallback && !isPublicApi) {
+  if (!user && !isAuthEntry && !isCallback && !isPublicApi && !isResetPassword) {
     return redirectWithCookies(request, "/login", supabaseResponse);
   }
 
@@ -65,7 +69,7 @@ export async function proxy(request: NextRequest) {
     return redirectWithCookies(request, "/", supabaseResponse);
   }
 
-  if (isCallback) {
+  if (isCallback || isResetPassword) {
     return supabaseResponse;
   }
 
