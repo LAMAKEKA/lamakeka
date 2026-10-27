@@ -1,6 +1,10 @@
 import {
+  defaultLogoUrl,
   defaultModulesForTipo,
   defaultRubrosForTipo,
+  defaultTaglineForTipo,
+  MAKEKA_LEGACY_MODULES,
+  looksLikeMakekaTenant,
 } from "@/lib/modules/defaults";
 import type { TenantConfig, EstablecimientoTipo } from "./types";
 
@@ -15,6 +19,7 @@ export type EstablecimientoRow = {
   modules_enabled?: string[] | null;
   is_platform_demo?: boolean | null;
   brand_theme?: Record<string, unknown> | null;
+  slug?: string | null;
 };
 
 export function normalizeTipo(tipo: string): EstablecimientoTipo {
@@ -24,12 +29,29 @@ export function normalizeTipo(tipo: string): EstablecimientoTipo {
   return "ganadero";
 }
 
+function resolveModules(
+  row: EstablecimientoRow,
+  tipo: EstablecimientoTipo
+): string[] {
+  if (row.modules_enabled && row.modules_enabled.length > 0) {
+    return [...row.modules_enabled];
+  }
+  // Vacío en DB: Makeka real → pack legacy; genérico → defaults por tipo
+  if (
+    looksLikeMakekaTenant({
+      nombre: row.nombre,
+      nombreDisplay: row.nombre_display,
+      slug: row.slug,
+    })
+  ) {
+    return [...MAKEKA_LEGACY_MODULES];
+  }
+  return [...defaultModulesForTipo(tipo)];
+}
+
 export function mapEstablecimientoRow(row: EstablecimientoRow): TenantConfig {
   const tipo = normalizeTipo(row.tipo);
-  const modules =
-    row.modules_enabled && row.modules_enabled.length > 0
-      ? [...row.modules_enabled]
-      : [...defaultModulesForTipo(tipo)];
+  const modules = resolveModules(row, tipo);
   const rubros =
     row.rubros && row.rubros.length > 0
       ? [...row.rubros]
@@ -44,12 +66,22 @@ export function mapEstablecimientoRow(row: EstablecimientoRow): TenantConfig {
     if (Object.keys(brandTheme).length === 0) brandTheme = null;
   }
 
+  const display = (row.nombre_display?.trim() || row.nombre).trim();
+  const makeka = looksLikeMakekaTenant({
+    nombre: row.nombre,
+    nombreDisplay: display,
+    slug: row.slug,
+  });
+
   return {
     establecimientoId: row.id,
     nombre: row.nombre,
-    nombreDisplay: (row.nombre_display?.trim() || row.nombre).trim(),
-    logoUrl: row.logo_url?.trim() || "/logo-makeka.png",
-    tagline: row.tagline?.trim() || "AI · Ganadera",
+    nombreDisplay: display,
+    logoUrl: row.logo_url?.trim() || defaultLogoUrl(),
+    // Makeka real: tagline histórico. Genérico: por tipo o el guardado.
+    tagline:
+      row.tagline?.trim() ||
+      (makeka ? "AI · Ganadera" : defaultTaglineForTipo(tipo)),
     tipo,
     rubros,
     modulesEnabled: modules,

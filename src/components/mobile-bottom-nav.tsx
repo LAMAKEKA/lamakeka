@@ -5,7 +5,7 @@ import { usePathname } from "next/navigation";
 import { Menu } from "lucide-react";
 import { filterModules, type AppModule } from "@/lib/modules/registry";
 import { iconFor } from "@/lib/modules/iconMap";
-import { MAKEKA_LEGACY_MODULES } from "@/lib/modules/defaults";
+import { defaultModulesForTipo } from "@/lib/modules/defaults";
 import type { TenantState } from "@/hooks/useTenant";
 
 interface MobileBottomNavProps {
@@ -29,12 +29,19 @@ export function MobileBottomNav({ onMore, tenantState }: MobileBottomNavProps) {
   const enabled =
     tenant?.modulesEnabled?.length
       ? tenant.modulesEnabled
-      : [...MAKEKA_LEGACY_MODULES];
+      : [...defaultModulesForTipo(tenant?.tipo ?? "ganadero")];
 
-  const bottomItems = filterModules(enabled)
+  // Bottom: prefer registry bottomNavOrder; si no hay 4 (ej. agrícola), completar con primarios enabled
+  const withOrder = filterModules(enabled)
     .filter((m) => m.bottomNavOrder != null)
-    .sort((a, b) => (a.bottomNavOrder ?? 0) - (b.bottomNavOrder ?? 0))
-    .slice(0, 4);
+    .sort((a, b) => (a.bottomNavOrder ?? 0) - (b.bottomNavOrder ?? 0));
+
+  const bottomItems =
+    withOrder.length >= 1
+      ? withOrder.slice(0, 4)
+      : filterModules(enabled)
+          .filter((m) => m.navSlot === "primary" || m.id === "agricola")
+          .slice(0, 4);
 
   const hasMangaFab = bottomItems.some((m) => m.id === "manga");
 

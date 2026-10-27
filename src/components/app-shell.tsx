@@ -73,7 +73,10 @@ export function AppShell({ children }: { children: React.ReactNode }) {
 
   if (!showShell) return <>{children}</>;
 
-  const brandName = tenantState.tenant?.nombreDisplay || "La Makeka";
+  const brandName =
+    tenantState.tenant?.nombreDisplay ||
+    tenantState.tenant?.nombre ||
+    "Campo";
   const logo = tenantState.tenant?.logoUrl || "/logo-makeka.png";
   const pageTitle = titleFor(pathname, brandName);
 

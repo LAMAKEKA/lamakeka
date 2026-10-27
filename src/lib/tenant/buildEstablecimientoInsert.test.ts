@@ -7,7 +7,8 @@ import {
 import {
   defaultModulesForTipo,
   defaultRubrosForTipo,
-  MAKEKA_LEGACY_MODULES,
+  GANADERO_GENERIC_MODULES,
+  PLATFORM_DEMO_MODULES,
 } from "@/lib/modules/defaults";
 import { PLATFORM_DEMO_EMAIL } from "./platformDemo";
 
@@ -19,7 +20,7 @@ const base = {
 };
 
 describe("buildEstablecimientoInsert", () => {
-  it("ganadero → MAKEKA_LEGACY modules + ganaderia rubro", () => {
+  it("ganadero genérico → modules sin huevos + nombre del campo (no Makeka brand)", () => {
     const p = buildEstablecimientoInsert({ ...base, tipo: "ganadero" });
     expect(p.nombre).toBe("Campo San José");
     expect(p.ubicacion).toBe("Córdoba");
@@ -28,14 +29,15 @@ describe("buildEstablecimientoInsert", () => {
     expect(p.nombre_display).toBe("Campo San José");
     expect(p.logo_url).toBe("/logo-makeka.png");
     expect(p.tagline).toBe("AI · Ganadera");
-    expect(p.modules_enabled).toEqual([...MAKEKA_LEGACY_MODULES]);
+    expect(p.modules_enabled).toEqual([...GANADERO_GENERIC_MODULES]);
+    expect(p.modules_enabled).not.toContain("produccion_huevos");
     expect(p.rubros).toEqual(defaultRubrosForTipo("ganadero"));
     expect(p.is_platform_demo).toBe(false);
   });
 
-  it("agricola → sin manga + tagline Campo", () => {
+  it("agricola → sin manga + tagline Agrícola", () => {
     const p = buildEstablecimientoInsert({ ...base, tipo: "agricola" });
-    expect(p.tagline).toBe("AI · Campo");
+    expect(p.tagline).toBe("AI · Agrícola");
     expect(p.modules_enabled).toEqual([...defaultModulesForTipo("agricola")]);
     expect(p.modules_enabled).not.toContain("manga");
     expect(p.rubros).toEqual(["agricola"]);
@@ -47,16 +49,19 @@ describe("buildEstablecimientoInsert", () => {
     expect(p.modules_enabled).toEqual([...defaultModulesForTipo("mixto")]);
     expect(p.modules_enabled).toContain("manga");
     expect(p.modules_enabled).toContain("agricola");
+    expect(p.modules_enabled).not.toContain("produccion_huevos");
     expect(p.rubros).toEqual(["ganaderia", "agricola"]);
   });
 
-  it("demo email → is_platform_demo true (case-insensitive)", () => {
+  it("demo email → is_platform_demo + PLATFORM_DEMO_MODULES", () => {
     const p = buildEstablecimientoInsert({
       ...base,
       tipo: "ganadero",
       email: "  TestPrueba@Gmail.com  ",
     });
     expect(p.is_platform_demo).toBe(true);
+    expect(p.modules_enabled).toEqual([...PLATFORM_DEMO_MODULES]);
+    expect(p.tagline).toBe("Plataforma multi-rubro");
     expect(PLATFORM_DEMO_EMAIL).toBe("testprueba@gmail.com");
   });
 });

@@ -8,7 +8,7 @@ import { LogOut, X } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { filterModules, getModule } from "@/lib/modules/registry";
 import { iconFor } from "@/lib/modules/iconMap";
-import { MAKEKA_LEGACY_MODULES } from "@/lib/modules/defaults";
+import { defaultModulesForTipo } from "@/lib/modules/defaults";
 import type { TenantState } from "@/hooks/useTenant";
 
 interface SidebarProps {
@@ -64,14 +64,16 @@ export function Sidebar({ onClose, tenantState }: SidebarProps) {
   const enabled =
     tenant?.modulesEnabled?.length
       ? tenant.modulesEnabled
-      : [...MAKEKA_LEGACY_MODULES];
+      : [...defaultModulesForTipo(tenant?.tipo ?? "ganadero")];
 
   const mainNav = filterModules(enabled);
+  // WhatsApp secondary solo si está en modules_enabled (Makeka legacy lo tiene off por default)
   const whatsapp = getModule("whatsapp");
-  const secondaryNav = whatsapp ? [whatsapp] : [];
+  const secondaryNav =
+    whatsapp && enabled.includes("whatsapp") ? [whatsapp] : [];
 
-  const title = tenant?.nombreDisplay || "La Makeka";
-  const tagline = tenant?.tagline || "AI · Ganadera";
+  const title = tenant?.nombreDisplay || tenant?.nombre || "Campo";
+  const tagline = tenant?.tagline || "AI · Campo";
   const logo = tenant?.logoUrl || "/logo-makeka.png";
 
   return (

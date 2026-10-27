@@ -4,7 +4,9 @@ import {
   defaultModulesForTipo,
   defaultRubrosForTipo,
   MAKEKA_LEGACY_MODULES,
+  GANADERO_GENERIC_MODULES,
   PLATFORM_DEMO_MODULES,
+  looksLikeMakekaTenant,
 } from "./defaults";
 
 describe("filterModules", () => {
@@ -38,11 +40,19 @@ describe("getModule", () => {
 });
 
 describe("defaults", () => {
-  it("Makeka legacy / ganadero includes manga and hacienda", () => {
+  it("ganadero genérico = PRD §5.4 sin huevos (no MAKEKA_LEGACY)", () => {
     const gan = defaultModulesForTipo("ganadero");
     expect(gan).toContain("manga");
     expect(gan).toContain("hacienda");
-    expect(gan).toEqual([...MAKEKA_LEGACY_MODULES]);
+    expect(gan).not.toContain("produccion_huevos");
+    expect(gan).not.toContain("agricola");
+    expect(gan).toEqual([...GANADERO_GENERIC_MODULES]);
+    expect(gan).not.toEqual([...MAKEKA_LEGACY_MODULES]);
+  });
+
+  it("MAKEKA_LEGACY still has huevos for real Makeka pack", () => {
+    expect(MAKEKA_LEGACY_MODULES).toContain("produccion_huevos");
+    expect(MAKEKA_LEGACY_MODULES).toContain("manga");
   });
 
   it("agricola default excludes manga", () => {
@@ -50,10 +60,11 @@ describe("defaults", () => {
     expect(defaultModulesForTipo("agricola")).toContain("agricola");
   });
 
-  it("mixto includes manga and agricola", () => {
+  it("mixto includes manga and agricola, no huevos", () => {
     const m = defaultModulesForTipo("mixto");
     expect(m).toContain("manga");
     expect(m).toContain("agricola");
+    expect(m).not.toContain("produccion_huevos");
   });
 
   it("defaultRubrosForTipo matches tipo", () => {
@@ -74,5 +85,11 @@ describe("defaults", () => {
     for (const id of MAKEKA_LEGACY_MODULES) {
       expect(getModule(id)).toBeTruthy();
     }
+  });
+
+  it("looksLikeMakekaTenant detects Makeka/Mateca names", () => {
+    expect(looksLikeMakekaTenant({ nombre: "La Makeka" })).toBe(true);
+    expect(looksLikeMakekaTenant({ nombreDisplay: "Mateca Sur" })).toBe(true);
+    expect(looksLikeMakekaTenant({ nombre: "Campo San José" })).toBe(false);
   });
 });

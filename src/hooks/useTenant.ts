@@ -7,7 +7,12 @@ import {
   type EstablecimientoRow,
 } from "@/lib/tenant/resolveTenant";
 import type { TenantConfig } from "@/lib/tenant/types";
-import { MAKEKA_LEGACY_MODULES } from "@/lib/modules/defaults";
+import {
+  defaultModulesForTipo,
+  defaultRubrosForTipo,
+  defaultLogoUrl,
+  MAKEKA_LEGACY_MODULES,
+} from "@/lib/modules/defaults";
 
 export type TenantState = {
   tenant: TenantConfig | null;
@@ -17,38 +22,37 @@ export type TenantState = {
 };
 
 const SELECT_FULL =
-  "id, nombre, tipo, nombre_display, logo_url, tagline, rubros, modules_enabled, is_platform_demo, brand_theme";
+  "id, nombre, tipo, nombre_display, logo_url, tagline, rubros, modules_enabled, is_platform_demo, brand_theme, slug";
 
 const SELECT_MIN = "id, nombre, tipo";
 
-function makekaFallback(partial?: {
-  id?: string;
-  nombre?: string;
-  tipo?: string;
-}): TenantConfig {
-  const tipo =
-    partial?.tipo === "agricola" ||
-    partial?.tipo === "mixto" ||
-    partial?.tipo === "ganadero"
-      ? partial.tipo
-      : "ganadero";
+/** Solo crash total sin fila: pack Makeka (cero regresión shell). */
+function emergencyMakekaFallback(): TenantConfig {
   return {
-    establecimientoId: partial?.id ?? "",
-    nombre: partial?.nombre ?? "La Makeka",
-    nombreDisplay: partial?.nombre ?? "La Makeka",
-    logoUrl: "/logo-makeka.png",
+    establecimientoId: "",
+    nombre: "La Makeka",
+    nombreDisplay: "La Makeka",
+    logoUrl: defaultLogoUrl(),
     tagline: "AI · Ganadera",
-    tipo,
-    rubros:
-      tipo === "agricola"
-        ? ["agricola"]
-        : tipo === "mixto"
-          ? ["ganaderia", "agricola"]
-          : ["ganaderia"],
+    tipo: "ganadero",
+    rubros: ["ganaderia"],
     modulesEnabled: [...MAKEKA_LEGACY_MODULES],
     isPlatformDemo: false,
     brandTheme: null,
   };
+}
+
+/** Fila mínima (schema viejo): defaults por tipo, no pack Makeka. */
+function minRowFallback(row: {
+  id: string;
+  nombre: string;
+  tipo: string;
+}): TenantConfig {
+  return mapEstablecimientoRow({
+    id: row.id,
+    nombre: row.nombre,
+    tipo: row.tipo,
+  });
 }
 
 export function useTenant(): TenantState {
@@ -87,6 +91,29 @@ export function useTenant(): TenantState {
         return;
       }
 
+      // SELECT_FULL puede fallar si falta `slug` u otra col — reintentar sin slug
+      if (full.error) {
+        const fullNoSlug = await supabase
+          .from("establecimientos")
+          .select(
+            "id, nombre, tipo, nombre_display, logo_url, tagline, rubros, modules_enabled, is_platform_demo, brand_theme"
+          )
+          .eq("user_id", user.id)
+          .limit(1)
+          .maybeSingle();
+
+        if (cancelled) return;
+
+        if (!fullNoSlug.error && fullNoSlug.data) {
+          setTenant(
+            mapEstablecimientoRow(fullNoSlug.data as EstablecimientoRow)
+          );
+          setUsedFallback(false);
+          setLoading(false);
+          return;
+        }
+      }
+
       const min = await supabase
         .from("establecimientos")
         .select(SELECT_MIN)
@@ -98,19 +125,13 @@ export function useTenant(): TenantState {
 
       if (!min.error && min.data) {
         const row = min.data as { id: string; nombre: string; tipo: string };
-        setTenant(
-          mapEstablecimientoRow({
-            id: row.id,
-            nombre: row.nombre,
-            tipo: row.tipo,
-          })
-        );
+        setTenant(minRowFallback(row));
         setUsedFallback(true);
         setLoading(false);
         return;
       }
 
-      setTenant(makekaFallback());
+      setTenant(emergencyMakekaFallback());
       setUsedFallback(true);
       setLoading(false);
     })();
@@ -120,4 +141,24 @@ export function useTenant(): TenantState {
   }, []);
 
   return { tenant, loading, usedFallback };
+}
+
+/** Helper UI: ¿módulo on? */
+export function tenantHasModule(
+  tenant: TenantConfig | null | undefined,
+  moduleId: string
+): boolean {
+  if (!tenant?.modulesEnabled?.length) {
+    return defaultModulesForTipo(tenant?.tipo ?? "ganadero").includes(
+      moduleId as never
+    );
+  }
+  return tenant.modulesEnabled.includes(moduleId);
+}
+
+export function tenantRubros(
+  tenant: TenantConfig | null | undefined
+): string[] {
+  if (tenant?.rubros?.length) return tenant.rubros;
+  return defaultRubrosForTipo(tenant?.tipo ?? "ganadero");
 }

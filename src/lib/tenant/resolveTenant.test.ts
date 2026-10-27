@@ -5,11 +5,21 @@ import {
   normalizeTipo,
 } from "./resolveTenant";
 import { PLATFORM_DEMO_EMAIL, isPlatformDemoEmail } from "./platformDemo";
-import { defaultModulesForTipo, MAKEKA_LEGACY_MODULES } from "@/lib/modules/defaults";
+import {
+  defaultModulesForTipo,
+  MAKEKA_LEGACY_MODULES,
+  GANADERO_GENERIC_MODULES,
+} from "@/lib/modules/defaults";
 
-const base = {
+const makekaBase = {
   id: "est-1",
   nombre: "La Makeka",
+  tipo: "ganadero",
+};
+
+const genericBase = {
+  id: "est-2",
+  nombre: "Campo San José",
   tipo: "ganadero",
 };
 
@@ -23,8 +33,8 @@ describe("normalizeTipo", () => {
 });
 
 describe("mapEstablecimientoRow", () => {
-  it("defaults logo tagline display modules for ganadero empty modules", () => {
-    const t = mapEstablecimientoRow(base);
+  it("Makeka empty modules → MAKEKA_LEGACY pack", () => {
+    const t = mapEstablecimientoRow(makekaBase);
     expect(t.logoUrl).toBe("/logo-makeka.png");
     expect(t.tagline).toBe("AI · Ganadera");
     expect(t.nombreDisplay).toBe("La Makeka");
@@ -33,10 +43,18 @@ describe("mapEstablecimientoRow", () => {
     expect(t.isPlatformDemo).toBe(false);
   });
 
+  it("generic ganadero empty modules → GANADERO_GENERIC (no huevos)", () => {
+    const t = mapEstablecimientoRow(genericBase);
+    expect(t.nombreDisplay).toBe("Campo San José");
+    expect(t.modulesEnabled).toEqual([...GANADERO_GENERIC_MODULES]);
+    expect(t.modulesEnabled).not.toContain("produccion_huevos");
+    expect(t.tagline).toBe("AI · Ganadera");
+  });
+
   it("honors non-empty modules_enabled and display fields", () => {
     const t = mapEstablecimientoRow({
-      ...base,
-      nombre_display: "Makeka Display",
+      ...genericBase,
+      nombre_display: "San José Display",
       logo_url: "/custom.png",
       tagline: "Custom",
       modules_enabled: ["inicio", "agricola"],
@@ -44,7 +62,7 @@ describe("mapEstablecimientoRow", () => {
       is_platform_demo: true,
       brand_theme: { primary: "#123", nested: { x: 1 } as unknown as string },
     });
-    expect(t.nombreDisplay).toBe("Makeka Display");
+    expect(t.nombreDisplay).toBe("San José Display");
     expect(t.logoUrl).toBe("/custom.png");
     expect(t.tagline).toBe("Custom");
     expect(t.modulesEnabled).toEqual(["inicio", "agricola"]);
@@ -62,6 +80,7 @@ describe("mapEstablecimientoRow", () => {
     });
     expect(t.modulesEnabled).toEqual([...defaultModulesForTipo("agricola")]);
     expect(t.modulesEnabled).not.toContain("manga");
+    expect(t.tagline).toBe("AI · Agrícola");
   });
 });
 
@@ -78,7 +97,7 @@ describe("platform demo email", () => {
   });
 
   it("does not force isPlatformDemo from email alone", () => {
-    const t = mapEstablecimientoRow(base);
+    const t = mapEstablecimientoRow(genericBase);
     const out = applyDemoEmailFallback(t, PLATFORM_DEMO_EMAIL);
     expect(out?.isPlatformDemo).toBe(false);
     expect(out?.modulesEnabled).toEqual(t.modulesEnabled);
