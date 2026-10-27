@@ -3,7 +3,7 @@
 **Project:** `szffikjajxqxawxavshw`  
 **SQL Editor:** https://supabase.com/dashboard/project/szffikjajxqxawxavshw/sql/new  
 **Migration file:** `supabase/migrations/20261014000000_realign_modules_generic_vs_makeka.sql`  
-**Status:** pendiente APPLY humano
+**Status:** APPLY OK (humano 2026-10-27) · PR #32 MERGED
 
 ## Qué hace
 
@@ -44,6 +44,16 @@ Expect:
 - Makeka/Mateca → has_huevos true, has_manga true
 - ganadero genérico → has_huevos false, has_manga true
 - agricola → has_manga false, has_agricola true
+
+## re-VERIFY result (2026-10-27)
+
+| nombre | tipo | is_platform_demo | has_huevos | has_agricola | has_manga |
+|--------|------|------------------|------------|--------------|-----------|
+| La Makeka | ganadero | false | true | false | true |
+| LA MAKEKA | ganadero | false | true | false | true |
+
+Solo 2 filas en cloud hoy = ambas Makeka real. Pack legacy correcto.
+Genérico / agrícola se validan al crear User B en setup (no había filas genéricas que realinear).
 
 ## Smoke 2 users (post-APPLY + app con modules fix)
 
