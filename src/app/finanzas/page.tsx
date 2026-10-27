@@ -1,11 +1,31 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
-import { TrendingUp, TrendingDown, DollarSign, Plus, X, Loader2, AlertCircle, Download, MoreHorizontal, Clock } from "lucide-react";
+import { useState, useEffect, useCallback, useRef } from "react";
+import {
+  TrendingUp, TrendingDown, DollarSign, Plus, X, Loader2, AlertCircle,
+  Download, MoreHorizontal, Clock, Paperclip, FileText, Image as ImageIcon,
+  FileSpreadsheet, ExternalLink, Trash2,
+} from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { useDraggable } from "@/lib/useDraggable";
 import { AuditDrawer } from "@/components/audit-drawer";
 import { exportToExcel, todayISO, slugifyName } from "@/lib/exportExcel";
+import {
+  ADJUNTO_ACCEPT,
+  ADJUNTO_MAX_FILES,
+  detectAdjuntoKind,
+  formatBytes,
+  prepareGastoAttachments,
+  type PreparedAttachment,
+  validateAdjuntoSelection,
+} from "@/lib/finanzas/compressAttachment";
+import {
+  createAdjuntoSignedUrl,
+  deleteGastoAdjunto,
+  listGastoAdjuntos,
+  uploadPreparedGastoAdjuntos,
+  type GastoAdjuntoRow,
+} from "@/lib/finanzas/uploadGastoAdjuntos";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -96,10 +116,19 @@ interface ModalProps {
   onCreated: () => void;
 }
 
+function kindIcon(kind: ReturnType<typeof detectAdjuntoKind>) {
+  if (kind === "image") return ImageIcon;
+  if (kind === "excel") return FileSpreadsheet;
+  return FileText;
+}
+
 function NuevoGastoModal({ establecimientoId, onClose, onCreated }: ModalProps) {
   const [form, setForm] = useState(FORM_EMPTY);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [pendingFiles, setPendingFiles] = useState<File[]>([]);
+  const [prepNote, setPrepNote] = useState<string | null>(null);
+  const fileRef = useRef<HTMLInputElement>(null);
   const { dragStyle, onDragStart } = useDraggable();
 
   function set(field: keyof typeof FORM_EMPTY) {
@@ -107,6 +136,32 @@ function NuevoGastoModal({ establecimientoId, onClose, onCreated }: ModalProps) 
   }
 
   const categorias = form.tipo === "ingreso" ? CATEGORIAS_INGRESO : CATEGORIAS_GASTO;
+
+  function onPickFiles(list: FileList | null) {
+    if (!list || list.length === 0) return;
+    const next = [...pendingFiles, ...Array.from(list)].slice(0, ADJUNTO_MAX_FILES);
+    const err = validateAdjuntoSelection(next);
+    if (err) { setError(err); return; }
+    setError(null);
+    setPendingFiles(next);
+    setPrepNote(
+      next.length > 0
+        ? `${next.length} archivo${next.length === 1 ? "" : "s"} · se comprimen al guardar (fotos→JPG; PDF/Word se validan)`
+        : null
+    );
+  }
+
+  function removePending(idx: number) {
+    setPendingFiles((arr) => {
+      const n = arr.filter((_, i) => i !== idx);
+      setPrepNote(
+        n.length > 0
+          ? `${n.length} archivo${n.length === 1 ? "" : "s"} · se comprimen al guardar`
+          : null
+      );
+      return n;
+    });
+  }
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -118,7 +173,19 @@ function NuevoGastoModal({ establecimientoId, onClose, onCreated }: ModalProps) 
     setError(null);
     const supabase = createClient();
     const { data: { user } } = await supabase.auth.getUser();
-    const { error: dbError } = await supabase.from("gastos").insert({
+
+    let prepared: PreparedAttachment[] = [];
+    if (pendingFiles.length > 0) {
+      const prep = await prepareGastoAttachments(pendingFiles);
+      if (prep.error) { setError(prep.error); setLoading(false); return; }
+      prepared = prep.prepared;
+      const saved = prepared.reduce((s, p) => s + p.savedBytes, 0);
+      if (saved > 0) {
+        setPrepNote(`Comprimido: −${formatBytes(saved)} antes de subir`);
+      }
+    }
+
+    const { data: inserted, error: dbError } = await supabase.from("gastos").insert({
       establecimiento_id: establecimientoId,
       concepto: form.concepto.trim(),
       categoria: form.categoria,
@@ -126,8 +193,34 @@ function NuevoGastoModal({ establecimientoId, onClose, onCreated }: ModalProps) 
       monto,
       fecha: form.fecha,
       created_by: user?.id ?? null,
-    });
-    if (dbError) { setError(dbError.message); setLoading(false); return; }
+    }).select("id").single();
+
+    if (dbError || !inserted?.id) {
+      setError(dbError?.message ?? "No se pudo guardar el movimiento.");
+      setLoading(false);
+      return;
+    }
+
+    if (prepared.length > 0) {
+      const up = await uploadPreparedGastoAdjuntos(supabase, {
+        establecimientoId,
+        gastoId: inserted.id,
+        userId: user?.id ?? null,
+        prepared,
+      });
+      if (up.error) {
+        // Movimiento ya creado: avisamos y cerramos igual
+        setError(
+          `Movimiento guardado, pero falló un adjunto: ${up.error}`
+        );
+        setLoading(false);
+        onCreated();
+        // No cerramos de inmediato si hay error parcial — user ve el msg 1.5s
+        setTimeout(() => onClose(), 1800);
+        return;
+      }
+    }
+
     onCreated();
     onClose();
   }
@@ -208,6 +301,75 @@ function NuevoGastoModal({ establecimientoId, onClose, onCreated }: ModalProps) 
             </div>
           </div>
 
+          {/* Adjuntos multi */}
+          <div>
+            <label className="form-label">Comprobantes / facturas</label>
+            <input
+              ref={fileRef}
+              type="file"
+              multiple
+              accept={ADJUNTO_ACCEPT}
+              className="hidden"
+              onChange={(e) => {
+                onPickFiles(e.target.files);
+                e.target.value = "";
+              }}
+            />
+            <button
+              type="button"
+              onClick={() => fileRef.current?.click()}
+              disabled={loading || pendingFiles.length >= ADJUNTO_MAX_FILES}
+              className="w-full min-h-12 px-4 py-3 rounded-xl text-sm font-medium flex items-center justify-center gap-2 touch-manipulation"
+              style={{
+                border: "1.5px dashed rgba(212,197,169,0.9)",
+                backgroundColor: "var(--color-pampa)",
+                color: "var(--color-tierra)",
+                opacity: pendingFiles.length >= ADJUNTO_MAX_FILES ? 0.55 : 1,
+              }}
+            >
+              <Paperclip size={16} />
+              {pendingFiles.length >= ADJUNTO_MAX_FILES
+                ? `Máximo ${ADJUNTO_MAX_FILES} archivos`
+                : "Sumar fotos, PDF o Word"}
+            </button>
+            <p className="text-[11px] mt-1.5" style={{ color: "rgba(26,26,24,0.4)" }}>
+              Hasta {ADJUNTO_MAX_FILES}. Fotos se comprimen solas a JPG; PDF/Word/Excel se validan (máx 8 MB c/u).
+            </p>
+            {prepNote && (
+              <p className="text-[11px] mt-1 font-medium" style={{ color: "var(--color-campo)" }}>{prepNote}</p>
+            )}
+            {pendingFiles.length > 0 && (
+              <ul className="mt-2 flex flex-col gap-1.5">
+                {pendingFiles.map((f, i) => {
+                  const kind = detectAdjuntoKind(f);
+                  const Icon = kindIcon(kind);
+                  return (
+                    <li
+                      key={`${f.name}-${i}`}
+                      className="flex items-center gap-2 px-3 py-2 rounded-xl text-sm"
+                      style={{ backgroundColor: "rgba(212,197,169,0.2)", color: "var(--color-tierra)" }}
+                    >
+                      <Icon size={14} className="shrink-0" style={{ color: "var(--color-cuero)" }} />
+                      <span className="flex-1 min-w-0 truncate">{f.name}</span>
+                      <span className="text-[11px] tabular-nums shrink-0" style={{ color: "rgba(26,26,24,0.45)" }}>
+                        {formatBytes(f.size)}
+                      </span>
+                      <button
+                        type="button"
+                        onClick={() => removePending(i)}
+                        className="w-8 h-8 rounded-lg flex items-center justify-center shrink-0"
+                        style={{ color: "rgba(26,26,24,0.4)" }}
+                        aria-label="Quitar archivo"
+                      >
+                        <X size={14} />
+                      </button>
+                    </li>
+                  );
+                })}
+              </ul>
+            )}
+          </div>
+
           {error && (
             <div className="flex items-center gap-2 px-4 py-3 rounded-xl text-sm" style={{ backgroundColor: "rgba(220,38,38,0.06)", color: "#dc2626", border: "1px solid rgba(220,38,38,0.15)" }}>
               <AlertCircle size={15} className="shrink-0" />{error}
@@ -217,7 +379,7 @@ function NuevoGastoModal({ establecimientoId, onClose, onCreated }: ModalProps) 
           <div className="flex gap-3 pt-1">
             <button type="button" onClick={onClose} className="flex-1 py-2.5 rounded-xl text-sm font-semibold" style={{ border: "1.5px solid rgba(212,197,169,0.8)", color: "var(--color-tierra)", backgroundColor: "transparent" }}>Cancelar</button>
             <button type="submit" disabled={loading} className="flex-1 py-2.5 rounded-xl text-sm font-semibold text-white flex items-center justify-center gap-2" style={{ backgroundColor: "var(--color-campo)", opacity: loading ? 0.7 : 1 }}>
-              {loading ? <><Loader2 size={15} className="animate-spin" />Guardando...</> : "Guardar"}
+              {loading ? <><Loader2 size={15} className="animate-spin" />{pendingFiles.length ? "Comprimiendo y guardando…" : "Guardando..."}</> : "Guardar"}
             </button>
           </div>
         </form>
@@ -270,6 +432,9 @@ export default function FinanzasPage() {
   const [profilesMap, setProfilesMap] = useState<Record<string, string>>({});
   const [auditId, setAuditId] = useState<string | null>(null);
   const [openMenuId, setOpenMenuId] = useState<string | null>(null);
+  const [adjuntosByGasto, setAdjuntosByGasto] = useState<Record<string, GastoAdjuntoRow[]>>({});
+  const [detailGastoId, setDetailGastoId] = useState<string | null>(null);
+  const [openingAdjId, setOpeningAdjId] = useState<string | null>(null);
 
   useEffect(() => {
     if (!openMenuId) return;
@@ -289,15 +454,25 @@ export default function FinanzasPage() {
     setEstablecimientoNombre(estab.nombre ?? "");
     const { data } = await supabase.from("gastos").select("*").eq("establecimiento_id", estab.id)
       .gte("fecha", fechaDesde).lte("fecha", fechaHasta).order("fecha", { ascending: false });
-    setGastos(data ?? []);
+    const rows = data ?? [];
+    setGastos(rows);
 
-    const ids = [...new Set((data ?? []).map((r) => r.created_by).filter(Boolean))] as string[];
+    const ids = [...new Set(rows.map((r) => r.created_by).filter(Boolean))] as string[];
     if (ids.length > 0) {
       const { data: profs } = await supabase.from("profiles").select("id, email, full_name").in("id", ids);
       const map: Record<string, string> = {};
       (profs ?? []).forEach((p) => { map[p.id] = p.full_name || p.email || "—"; });
       setProfilesMap(map);
+    } else {
+      setProfilesMap({});
     }
+
+    const adj = await listGastoAdjuntos(supabase, rows.map((r) => r.id));
+    const by: Record<string, GastoAdjuntoRow[]> = {};
+    for (const a of adj) {
+      (by[a.gasto_id] ??= []).push(a);
+    }
+    setAdjuntosByGasto(by);
 
     setLoading(false);
   }, [fechaDesde, fechaHasta]);
@@ -342,12 +517,142 @@ export default function FinanzasPage() {
     exportToExcel(rows, "Finanzas", `${slug}_Finanzas_${todayISO()}.xlsx`);
   }
 
+  async function openAdjunto(row: GastoAdjuntoRow) {
+    setOpeningAdjId(row.id);
+    const supabase = createClient();
+    const res = await createAdjuntoSignedUrl(supabase, row.storage_path);
+    setOpeningAdjId(null);
+    if ("error" in res) {
+      alert(res.error);
+      return;
+    }
+    window.open(res.url, "_blank", "noopener,noreferrer");
+  }
+
+  async function removeAdjunto(row: GastoAdjuntoRow) {
+    if (!confirm(`¿Borrar "${row.nombre_original}"?`)) return;
+    const supabase = createClient();
+    const err = await deleteGastoAdjunto(supabase, row);
+    if (err) {
+      alert(err);
+      return;
+    }
+    setAdjuntosByGasto((prev) => {
+      const next = { ...prev };
+      next[row.gasto_id] = (next[row.gasto_id] ?? []).filter((a) => a.id !== row.id);
+      return next;
+    });
+  }
+
+  const detailGasto = detailGastoId ? gastos.find((g) => g.id === detailGastoId) : null;
+  const detailAdjuntos = detailGastoId ? (adjuntosByGasto[detailGastoId] ?? []) : [];
+
   return (
     <>
       {showModal && establecimientoId && (
         <NuevoGastoModal establecimientoId={establecimientoId} onClose={() => setShowModal(false)} onCreated={fetchData} />
       )}
       {auditId && <AuditDrawer tabla="gastos" registroId={auditId} onClose={() => setAuditId(null)} />}
+
+      {detailGasto && (
+        <div
+          className="fixed inset-0 z-50 flex items-end justify-center md:items-center px-0 md:px-4"
+          style={{ backgroundColor: "rgba(26,26,24,0.45)" }}
+          onClick={() => setDetailGastoId(null)}
+        >
+          <div
+            className="w-full md:max-w-md rounded-t-2xl md:rounded-2xl p-6 flex flex-col gap-4 max-h-[90vh] overflow-y-auto"
+            style={{ backgroundColor: "#ffffff", boxShadow: "0 20px 60px rgba(26,26,24,0.18)", border: "1px solid rgba(212,197,169,0.5)" }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-start justify-between gap-3">
+              <div className="min-w-0">
+                <p className="text-xs font-medium tracking-widest uppercase mb-1" style={{ color: "rgba(26,26,24,0.38)" }}>
+                  {detailGasto.tipo === "ingreso" ? "Ingreso" : "Gasto"} · {fmtFecha(detailGasto.fecha)}
+                </p>
+                <h2 className="text-lg font-semibold truncate" style={{ color: "var(--color-tierra)", fontFamily: "var(--font-playfair), Georgia, serif" }}>
+                  {detailGasto.concepto}
+                </h2>
+                <p className="text-sm mt-1" style={{ color: "rgba(26,26,24,0.5)" }}>
+                  {detailGasto.categoria} ·{" "}
+                  <span className="font-semibold" style={{ color: detailGasto.tipo === "ingreso" ? "#16a34a" : "#dc2626" }}>
+                    {detailGasto.tipo === "ingreso" ? "+" : "-"}
+                    {fmtFull(detailGasto.monto, "ARS")}
+                  </span>
+                </p>
+              </div>
+              <button
+                onClick={() => setDetailGastoId(null)}
+                className="w-8 h-8 rounded-lg flex items-center justify-center shrink-0"
+                style={{ color: "rgba(26,26,24,0.4)" }}
+              >
+                <X size={16} />
+              </button>
+            </div>
+
+            <div>
+              <div className="flex items-center justify-between mb-2">
+                <h3 className="text-sm font-semibold" style={{ color: "var(--color-tierra)" }}>
+                  Adjuntos ({detailAdjuntos.length})
+                </h3>
+              </div>
+              {detailAdjuntos.length === 0 ? (
+                <p className="text-sm" style={{ color: "rgba(26,26,24,0.4)" }}>
+                  Sin archivos. Los próximos movimientos pueden llevar fotos/PDF al crearlos.
+                </p>
+              ) : (
+                <ul className="flex flex-col gap-2">
+                  {detailAdjuntos.map((a) => {
+                    const kind = detectAdjuntoKind({ name: a.nombre_original, type: a.mime });
+                    const Icon = kindIcon(kind);
+                    const saved =
+                      a.bytes_original != null && a.bytes_original > a.bytes
+                        ? a.bytes_original - a.bytes
+                        : 0;
+                    return (
+                      <li
+                        key={a.id}
+                        className="flex items-center gap-2 px-3 py-2.5 rounded-xl"
+                        style={{ backgroundColor: "var(--color-pampa)", border: "1px solid rgba(212,197,169,0.45)" }}
+                      >
+                        <Icon size={16} className="shrink-0" style={{ color: "var(--color-cuero)" }} />
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm font-medium truncate" style={{ color: "var(--color-tierra)" }}>
+                            {a.nombre_original}
+                          </p>
+                          <p className="text-[11px]" style={{ color: "rgba(26,26,24,0.45)" }}>
+                            {formatBytes(a.bytes)}
+                            {saved > 0 ? ` · −${formatBytes(saved)} al comprimir` : ""}
+                          </p>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => openAdjunto(a)}
+                          disabled={openingAdjId === a.id}
+                          className="w-10 h-10 rounded-xl flex items-center justify-center"
+                          style={{ color: "var(--color-campo)", backgroundColor: "rgba(45,106,79,0.08)" }}
+                          title="Abrir"
+                        >
+                          {openingAdjId === a.id ? <Loader2 size={15} className="animate-spin" /> : <ExternalLink size={15} />}
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => removeAdjunto(a)}
+                          className="w-10 h-10 rounded-xl flex items-center justify-center"
+                          style={{ color: "#dc2626", backgroundColor: "rgba(220,38,38,0.06)" }}
+                          title="Borrar"
+                        >
+                          <Trash2 size={15} />
+                        </button>
+                      </li>
+                    );
+                  })}
+                </ul>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
 
       <div className="flex flex-col min-h-full">
         {/* Header */}
@@ -515,7 +820,26 @@ export default function FinanzasPage() {
                             onMouseEnter={(e) => { (e.currentTarget as HTMLTableRowElement).style.backgroundColor = "rgba(240,237,230,0.35)"; }}
                             onMouseLeave={(e) => { (e.currentTarget as HTMLTableRowElement).style.backgroundColor = "transparent"; }}>
                             <td className="px-6 py-3.5 text-sm tabular-nums" style={{ color: "rgba(26,26,24,0.5)" }}>{fmtFecha(mov.fecha)}</td>
-                            <td className="px-6 py-3.5 text-sm font-medium" style={{ color: "var(--color-tierra)" }}>{mov.concepto}</td>
+                            <td className="px-6 py-3.5 text-sm font-medium" style={{ color: "var(--color-tierra)" }}>
+                              <button
+                                type="button"
+                                onClick={() => setDetailGastoId(mov.id)}
+                                className="text-left hover:underline touch-manipulation"
+                                style={{ color: "inherit" }}
+                              >
+                                {mov.concepto}
+                              </button>
+                              {(adjuntosByGasto[mov.id]?.length ?? 0) > 0 && (
+                                <span
+                                  className="ml-2 inline-flex items-center gap-1 text-[11px] font-medium px-1.5 py-0.5 rounded-md align-middle"
+                                  style={{ backgroundColor: "rgba(45,106,79,0.1)", color: "var(--color-campo)" }}
+                                  title={`${adjuntosByGasto[mov.id].length} adjunto(s)`}
+                                >
+                                  <Paperclip size={11} />
+                                  {adjuntosByGasto[mov.id].length}
+                                </span>
+                              )}
+                            </td>
                             <td className="px-6 py-3.5">
                               <span className="text-xs font-medium px-2.5 py-1 rounded-full" style={{ backgroundColor: mov.tipo === "ingreso" ? "rgba(22,163,74,0.09)" : "rgba(212,197,169,0.3)", color: mov.tipo === "ingreso" ? "#16a34a" : "var(--color-cuero)" }}>
                                 {mov.categoria}
@@ -547,6 +871,12 @@ export default function FinanzasPage() {
                                 {openMenuId === mov.id && (
                                   <div className="absolute right-0 top-full mt-1 z-20 rounded-xl overflow-hidden py-1"
                                     style={{ backgroundColor: "#ffffff", boxShadow: "0 4px 20px rgba(26,26,24,0.14)", border: "1px solid rgba(212,197,169,0.5)", minWidth: 140 }}>
+                                    <button onClick={(e) => { e.stopPropagation(); setDetailGastoId(mov.id); setOpenMenuId(null); }}
+                                      className="w-full px-4 py-2 text-sm text-left flex items-center gap-2" style={{ color: "rgba(26,26,24,0.6)" }}
+                                      onMouseEnter={(e) => { (e.currentTarget as HTMLButtonElement).style.backgroundColor = "rgba(212,197,169,0.2)"; }}
+                                      onMouseLeave={(e) => { (e.currentTarget as HTMLButtonElement).style.backgroundColor = "transparent"; }}>
+                                      <Paperclip size={13} />Adjuntos
+                                    </button>
                                     <button onClick={(e) => { e.stopPropagation(); setAuditId(mov.id); setOpenMenuId(null); }}
                                       className="w-full px-4 py-2 text-sm text-left flex items-center gap-2" style={{ color: "rgba(26,26,24,0.6)" }}
                                       onMouseEnter={(e) => { (e.currentTarget as HTMLButtonElement).style.backgroundColor = "rgba(212,197,169,0.2)"; }}
