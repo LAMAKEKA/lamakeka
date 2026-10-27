@@ -5,6 +5,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { Eye, EyeOff, Loader2, AlertCircle, CheckCircle2 } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
+import { signupConfirmRedirect } from "@/lib/auth/emailRedirect";
 
 const ERROR_MAP: Record<string, string> = {
   "User already registered": "Este email ya está registrado.",
@@ -83,9 +84,39 @@ export default function RegisterPage() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState(false);
+  const [resendLoading, setResendLoading] = useState(false);
+  const [resendMsg, setResendMsg] = useState<string | null>(null);
 
   function set(field: keyof typeof form) {
     return (value: string) => setForm((f) => ({ ...f, [field]: value }));
+  }
+
+  async function resendConfirmation() {
+    const email = form.email.trim();
+    if (!email) return;
+    setResendLoading(true);
+    setResendMsg(null);
+    setError(null);
+    try {
+      const supabase = createClient();
+      const { error: resendError } = await supabase.auth.resend({
+        type: "signup",
+        email,
+        options: {
+          emailRedirectTo: signupConfirmRedirect(window.location.origin),
+        },
+      });
+      if (resendError) {
+        setError(translateError(resendError.message));
+      } else {
+        setResendMsg("Te reenviamos el mail. Revisá bandeja y spam.");
+      }
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : "Error al reenviar.";
+      setError(translateError(msg));
+    } finally {
+      setResendLoading(false);
+    }
   }
 
   async function handleSubmit(e: React.FormEvent) {
@@ -118,7 +149,7 @@ export default function RegisterPage() {
             whatsapp: form.whatsapp.trim(),
           },
           // Tras confirmar email → callback → /setup (sin establecimiento).
-          emailRedirectTo: `${window.location.origin}/auth/callback?next=/setup`,
+          emailRedirectTo: signupConfirmRedirect(window.location.origin),
         },
       });
 
@@ -188,7 +219,44 @@ export default function RegisterPage() {
             (nombre del campo + ganadero / agrícola / mixto). Revisá spam si no
             llega.
           </p>
+          {error && (
+            <div
+              className="flex items-center gap-2 px-4 py-3 rounded-xl text-sm text-left mb-4"
+              style={{
+                backgroundColor: "rgba(220,38,38,0.06)",
+                color: "#dc2626",
+                border: "1px solid rgba(220,38,38,0.15)",
+              }}
+            >
+              <AlertCircle size={15} className="shrink-0" />
+              {error}
+            </div>
+          )}
+          {resendMsg && (
+            <p className="text-sm mb-4" style={{ color: "#15803d" }}>
+              {resendMsg}
+            </p>
+          )}
           <div className="flex flex-col items-center gap-3">
+            <button
+              type="button"
+              onClick={resendConfirmation}
+              disabled={resendLoading}
+              className="min-h-[48px] w-full max-w-xs rounded-xl text-sm font-semibold touch-manipulation disabled:opacity-60 inline-flex items-center justify-center gap-2"
+              style={{
+                backgroundColor: "var(--color-campo)",
+                color: "#ffffff",
+              }}
+            >
+              {resendLoading ? (
+                <>
+                  <Loader2 size={16} className="animate-spin" />
+                  Reenviando…
+                </>
+              ) : (
+                "Reenviar email de confirmación"
+              )}
+            </button>
             <Link
               href="/login"
               className="text-sm font-semibold min-h-[44px] inline-flex items-center"

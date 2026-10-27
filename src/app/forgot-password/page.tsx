@@ -5,6 +5,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { Loader2, AlertCircle, CheckCircle2 } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
+import { recoveryRedirect } from "@/lib/auth/emailRedirect";
 
 const ERROR_MAP: Record<string, string> = {
   "Email not confirmed": "Confirmá tu email antes de recuperar la contraseña.",
@@ -34,7 +35,7 @@ export default function ForgotPasswordPage() {
 
     try {
       const supabase = createClient();
-      const redirectTo = `${window.location.origin}/auth/callback?next=${encodeURIComponent("/reset-password")}`;
+      const redirectTo = recoveryRedirect(window.location.origin);
       const { error: resetError } = await supabase.auth.resetPasswordForEmail(
         email.trim(),
         { redirectTo }
