@@ -300,6 +300,9 @@ export default function RegisterPage() {
           <p className="text-sm mt-1" style={{ color: "rgba(26,26,24,0.45)" }}>
             Creá tu cuenta gratis
           </p>
+          <p className="text-xs mt-2" style={{ color: "rgba(26,26,24,0.4)" }}>
+            Paso 1 de 2 · Después configurás el nombre y tipo de tu campo
+          </p>
         </div>
 
         {/* Card */}
@@ -312,8 +315,48 @@ export default function RegisterPage() {
             border: "1px solid rgba(212,197,169,0.5)",
           }}
         >
+          {/* Progress */}
+          <div className="flex items-center justify-center gap-2 mb-6">
+            {[
+              { n: 1, label: "Cuenta", active: true },
+              { n: 2, label: "Tu campo", active: false },
+            ].map((step, i) => (
+              <div key={step.n} className="flex items-center gap-2">
+                <div className="flex items-center gap-1.5">
+                  <div
+                    className="w-7 h-7 rounded-full flex items-center justify-center text-xs font-semibold shrink-0"
+                    style={{
+                      backgroundColor: step.active
+                        ? "var(--color-cuero)"
+                        : "rgba(212,197,169,0.5)",
+                      color: step.active ? "#fff" : "rgba(26,26,24,0.4)",
+                    }}
+                  >
+                    {step.n}
+                  </div>
+                  <span
+                    className="text-xs font-medium hidden sm:block"
+                    style={{
+                      color: step.active
+                        ? "var(--color-tierra)"
+                        : "rgba(26,26,24,0.4)",
+                    }}
+                  >
+                    {step.label}
+                  </span>
+                </div>
+                {i === 0 && (
+                  <div
+                    className="w-8 h-px"
+                    style={{ backgroundColor: "rgba(212,197,169,0.6)" }}
+                  />
+                )}
+              </div>
+            ))}
+          </div>
+
           <h2
-            className="text-xl font-semibold mb-6"
+            className="text-xl font-semibold mb-2"
             style={{
               fontFamily: "var(--font-playfair), Georgia, serif",
               color: "var(--color-tierra)",
@@ -321,6 +364,11 @@ export default function RegisterPage() {
           >
             Crear cuenta
           </h2>
+          <p className="text-sm mb-6" style={{ color: "rgba(26,26,24,0.5)" }}>
+            Acá solo van tus datos personales. El establecimiento (nombre del
+            campo, ganadero / agrícola / mixto) se completa en el paso
+            siguiente.
+          </p>
 
           <form onSubmit={handleSubmit} className="space-y-4">
             {/* Nombre + Apellido */}
@@ -477,10 +525,21 @@ export default function RegisterPage() {
                   Creando cuenta...
                 </>
               ) : (
-                "Crear cuenta"
+                "Crear cuenta y continuar →"
               )}
             </button>
           </form>
+
+          <p
+            className="text-center text-xs mt-4"
+            style={{ color: "rgba(26,26,24,0.4)" }}
+          >
+            Después del alta (y confirmar email si hace falta) vas a{" "}
+            <strong style={{ color: "var(--color-tierra)" }}>
+              Configurá tu establecimiento
+            </strong>
+            .
+          </p>
 
           <p
             className="text-center text-sm mt-6"
