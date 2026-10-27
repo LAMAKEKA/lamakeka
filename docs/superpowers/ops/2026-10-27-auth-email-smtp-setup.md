@@ -30,6 +30,22 @@ Checklist fix rápido:
 
 Si el user ya se creó sin mail: en Auth Users → el user → **Send magic link** / o desde app **Reenviar** cuando SMTP ande.
 
+### MVP sin dominio pago (decisión 2026-10-27)
+
+Resend `onboarding@resend.dev` **no** puede mandar a emails arbitrarios (403). Sin dominio verificado no hay confirm mail confiable a clientes.
+
+**Camino producto ahora:**
+
+1. Auth → Providers → Email → **Confirm email = OFF**  
+   https://supabase.com/dashboard/project/szffikjajxqxawxavshw/auth/providers
+2. Flujo: register (email + **su** contraseña) → sesión al toque → `/setup` (nombre del campo + tipo).
+3. SMTP Resend puede quedar para más adelante (forgot password / confirm cuando haya dominio).
+4. App ya soporta esto: si `signUp` devuelve `session` → `location.assign("/setup")`.
+
+**No** hace falta otro modelo de alta: sigue siendo “cada uno pone email + clave”. Solo no pedimos click en un mail.
+
+Cuando haya dominio: Confirm ON + sender `noreply@dominio` + SMTP.
+
 ---
 
 ## 1) URL Configuration (obligatorio)
