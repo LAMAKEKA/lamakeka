@@ -21,10 +21,33 @@ const ERROR_MAP: Record<string, string> = {
     "Límite de emails alcanzado. Esperá unos minutos e intentá de nuevo.",
   "Signup requires a valid password":
     "La contraseña no cumple los requisitos mínimos.",
+  "Error sending confirmation email":
+    "No se pudo enviar el email de confirmación. Revisá SMTP en Supabase (Resend: host smtp.resend.com, user resend, pass = API key, sender onboarding@resend.dev o dominio verificado). Si el usuario se creó igual, probá Reenviar o Iniciar sesión.",
+  "error sending confirmation email":
+    "No se pudo enviar el email de confirmación. Revisá SMTP en Supabase (Resend: host smtp.resend.com, user resend, pass = API key, sender onboarding@resend.dev o dominio verificado).",
+  "Error sending magic link email":
+    "No se pudo enviar el email. Revisá la config SMTP (Resend) en Supabase Auth.",
 };
 
 function translateError(msg: string) {
-  return ERROR_MAP[msg] ?? `Error: ${msg}`;
+  if (ERROR_MAP[msg]) return ERROR_MAP[msg];
+  const lower = msg.toLowerCase();
+  for (const [k, v] of Object.entries(ERROR_MAP)) {
+    if (lower.includes(k.toLowerCase())) return v;
+  }
+  // SMTP / mail delivery failures from GoTrue
+  if (
+    /confirmation email|sending.*email|smtp|mail.*fail|error sending/i.test(msg)
+  ) {
+    return (
+      "No se pudo enviar el email de confirmación. " +
+      "En Supabase → Project Settings → Auth → SMTP: Enable custom SMTP, " +
+      "host smtp.resend.com, port 465, user resend, password = API key Resend, " +
+      "sender onboarding@resend.dev (lab) o noreply@tudominio.com (dominio verificado). " +
+      "Después reintentá o usá Reenviar."
+    );
+  }
+  return `Error: ${msg}`;
 }
 
 interface FieldProps {
