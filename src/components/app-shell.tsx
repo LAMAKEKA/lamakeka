@@ -3,12 +3,16 @@
 import { useEffect, useState } from "react";
 import { usePathname } from "next/navigation";
 import { Menu } from "lucide-react";
-import Image from "next/image";
 import { Sidebar } from "./sidebar";
 import { MobileBottomNav } from "./mobile-bottom-nav";
+import { BrandMark } from "./brand-mark";
 import { createClient } from "@/lib/supabase/client";
 import { TenantProvider, useTenant } from "@/hooks/useTenant";
 import { MODULE_REGISTRY } from "@/lib/modules/registry";
+import {
+  applyBrandThemeToElement,
+  brandThemeCssVars,
+} from "@/lib/tenant/brandTheme";
 
 const NO_SHELL = ["/login", "/register", "/setup"];
 
@@ -80,17 +84,29 @@ function AppShellInner({ children }: { children: React.ReactNode }) {
     })();
   }, [showShell]);
 
+  // Colores del campo en el shell (Makeka default si no hay brand_theme)
+  useEffect(() => {
+    if (!showShell) return;
+    const root = document.documentElement;
+    applyBrandThemeToElement(root, tenantState.tenant?.brandTheme ?? null);
+    return () => {
+      // al salir de shell (login) restauramos defaults vía mismas vars Makeka
+      applyBrandThemeToElement(root, null);
+    };
+  }, [showShell, tenantState.tenant?.brandTheme]);
+
   if (!showShell) return <>{children}</>;
 
   const brandName =
     tenantState.tenant?.nombreDisplay ||
     tenantState.tenant?.nombre ||
     "Campo";
-  const logo = tenantState.tenant?.logoUrl || "/logo-makeka.png";
+  const logo = tenantState.tenant?.logoUrl || "";
   const pageTitle = titleFor(pathname, brandName);
+  const themeVars = brandThemeCssVars(tenantState.tenant?.brandTheme ?? null);
 
   return (
-    <div className="flex h-[100dvh] overflow-hidden">
+    <div className="flex h-[100dvh] overflow-hidden" style={themeVars as React.CSSProperties}>
       {sidebarOpen && (
         <div
           className="fixed inset-0 z-40 md:hidden animate-fade-in"
@@ -126,7 +142,7 @@ function AppShellInner({ children }: { children: React.ReactNode }) {
           <button
             type="button"
             onClick={() => setSidebarOpen(true)}
-            className="w-9 h-9 flex items-center justify-center rounded-lg shrink-0 touch-manipulation"
+            className="w-11 h-11 flex items-center justify-center rounded-xl shrink-0 touch-manipulation"
             style={{
               color: "var(--color-campo)",
               backgroundColor: "rgba(58,74,50,0.08)",
@@ -134,19 +150,13 @@ function AppShellInner({ children }: { children: React.ReactNode }) {
             }}
             aria-label="Abrir menú"
           >
-            <Menu size={18} strokeWidth={2} />
+            <Menu size={20} strokeWidth={2} />
           </button>
 
           <div className="flex-1 min-w-0 flex items-center gap-2">
-            <Image
-              src={logo}
-              alt=""
-              width={22}
-              height={22}
-              className="rounded-md shrink-0"
-            />
+            <BrandMark logoUrl={logo} name={brandName} size={24} roundedClass="rounded-md" />
             <h1
-              className="text-sm font-bold leading-tight truncate"
+              className="text-[15px] font-bold leading-tight truncate"
               style={{
                 color: "var(--color-tierra)",
                 fontFamily: "var(--font-playfair), Georgia, serif",
@@ -157,7 +167,7 @@ function AppShellInner({ children }: { children: React.ReactNode }) {
           </div>
 
           <div
-            className="w-8 h-8 rounded-full flex items-center justify-center text-white text-[10px] font-semibold shrink-0"
+            className="w-9 h-9 rounded-full flex items-center justify-center text-white text-[10px] font-semibold shrink-0"
             style={{ backgroundColor: "var(--color-cuero)" }}
             aria-hidden
           >

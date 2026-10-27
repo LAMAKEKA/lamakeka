@@ -12,6 +12,9 @@ import {
 } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { useTenant } from "@/hooks/useTenant";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent } from "@/components/ui/card";
 
 type LoteEstado = "planificado" | "en_curso" | "cosechado" | "descanso";
 
@@ -27,28 +30,12 @@ interface LoteAgricola {
 
 const ESTADO_STYLE: Record<
   LoteEstado,
-  { bg: string; color: string; label: string }
+  { variant: "info" | "success" | "default" | "warning"; label: string }
 > = {
-  planificado: {
-    bg: "rgba(37,99,235,0.08)",
-    color: "#2563eb",
-    label: "Planificado",
-  },
-  en_curso: {
-    bg: "rgba(22,163,74,0.09)",
-    color: "#16a34a",
-    label: "En curso",
-  },
-  cosechado: {
-    bg: "rgba(139,78,42,0.10)",
-    color: "var(--color-cuero)",
-    label: "Cosechado",
-  },
-  descanso: {
-    bg: "rgba(217,119,6,0.10)",
-    color: "#d97706",
-    label: "Descanso",
-  },
+  planificado: { variant: "info", label: "Planificado" },
+  en_curso: { variant: "success", label: "En curso" },
+  cosechado: { variant: "default", label: "Cosechado" },
+  descanso: { variant: "warning", label: "Descanso" },
 };
 
 const FORM_EMPTY = {
@@ -189,42 +176,45 @@ export default function AgricolaPage() {
   }
 
   return (
-    <div className="page-pad max-w-3xl mx-auto py-6 space-y-4">
+    <div className="page-pad max-w-3xl mx-auto space-y-4 pb-20 md:pb-6">
       <div className="flex items-start justify-between gap-3">
-        <div>
+        <div className="min-w-0">
           <div className="flex items-center gap-2 mb-1">
-            <Sprout size={22} style={{ color: "var(--color-campo)" }} />
-            <h1
-              className="text-xl font-bold"
-              style={{
-                fontFamily: "var(--font-playfair), Georgia, serif",
-                color: "var(--color-tierra)",
-              }}
+            <span
+              className="w-9 h-9 rounded-xl flex items-center justify-center shrink-0"
+              style={{ backgroundColor: "rgba(22,163,74,0.12)", color: "#16a34a" }}
             >
-              Agrícola
-            </h1>
+              <Sprout size={18} />
+            </span>
+            <div className="min-w-0">
+              <h1
+                className="text-xl font-bold leading-tight hidden md:block"
+                style={{
+                  fontFamily: "var(--font-playfair), Georgia, serif",
+                  color: "var(--color-tierra)",
+                }}
+              >
+                Agrícola
+              </h1>
+              <p className="text-sm truncate" style={{ color: "rgba(26,26,24,0.5)" }}>
+                {tenant?.nombreDisplay ?? "Campo"} · lotes MVP
+              </p>
+            </div>
           </div>
-          <p className="text-sm" style={{ color: "rgba(26,26,24,0.5)" }}>
-            {tenant?.nombreDisplay ?? "Campo"} · lotes y cultivos (MVP)
-          </p>
         </div>
-        <button
+        <Button
           type="button"
+          size="field"
+          className="hidden md:inline-flex shrink-0"
           onClick={() => {
             setError(null);
             setShowModal(true);
           }}
           disabled={schemaMissing}
-          className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-semibold min-h-12"
-          style={{
-            backgroundColor: "var(--color-campo)",
-            color: "#fff",
-            opacity: schemaMissing ? 0.5 : 1,
-          }}
         >
           <Plus size={16} />
           Nuevo lote
-        </button>
+        </Button>
       </div>
 
       {schemaMissing && (
@@ -243,72 +233,100 @@ export default function AgricolaPage() {
       )}
 
       {lotes.length === 0 && !schemaMissing ? (
-        <div
-          className="rounded-2xl border p-8 text-center"
-          style={{
-            backgroundColor: "#fff",
-            borderColor: "rgba(212,197,169,0.5)",
-          }}
-        >
-          <p className="text-sm" style={{ color: "rgba(26,26,24,0.45)" }}>
-            Todavía no hay lotes. Cargá el primero.
+        <div className="empty-state">
+          <div
+            className="mx-auto mb-3 w-12 h-12 rounded-2xl flex items-center justify-center"
+            style={{ backgroundColor: "rgba(22,163,74,0.1)", color: "#16a34a" }}
+          >
+            <Sprout size={22} />
+          </div>
+          <p className="text-sm font-semibold" style={{ color: "var(--color-tierra)" }}>
+            Todavía no hay lotes
           </p>
+          <p className="text-xs mt-2 mb-4" style={{ color: "rgba(26,26,24,0.5)" }}>
+            Cargá el primero para seguir siembra y cultivos.
+          </p>
+          <Button
+            type="button"
+            size="field"
+            onClick={() => {
+              setError(null);
+              setShowModal(true);
+            }}
+          >
+            <Plus size={16} />
+            Nuevo lote
+          </Button>
         </div>
       ) : (
-        <ul className="space-y-3">
+        <ul className="list-stack">
           {lotes.map((l) => {
             const st = ESTADO_STYLE[l.estado] ?? ESTADO_STYLE.planificado;
             return (
-              <li
-                key={l.id}
-                className="rounded-2xl border p-4 flex items-start justify-between gap-3"
-                style={{
-                  backgroundColor: "#fff",
-                  borderColor: "rgba(212,197,169,0.5)",
-                }}
-              >
-                <div>
-                  <div className="flex flex-wrap items-center gap-2 mb-1">
-                    <span
-                      className="font-semibold"
-                      style={{ color: "var(--color-tierra)" }}
-                    >
-                      {l.nombre}
-                    </span>
-                    <span
-                      className="text-xs font-medium px-2 py-0.5 rounded-full"
-                      style={{ backgroundColor: st.bg, color: st.color }}
-                    >
-                      {st.label}
-                    </span>
-                  </div>
-                  <p className="text-sm" style={{ color: "rgba(26,26,24,0.55)" }}>
-                    {[l.cultivo, l.hectareas != null ? `${l.hectareas} ha` : null]
-                      .filter(Boolean)
-                      .join(" · ") || "Sin cultivo / ha"}
-                  </p>
-                  {l.notas && (
-                    <p
-                      className="text-xs mt-1"
-                      style={{ color: "rgba(26,26,24,0.4)" }}
-                    >
-                      {l.notas}
-                    </p>
-                  )}
-                </div>
-                <button
-                  type="button"
-                  onClick={() => handleDelete(l.id)}
-                  className="p-2 rounded-lg min-h-12 min-w-12 flex items-center justify-center"
-                  style={{ color: "#dc2626" }}
-                  aria-label="Borrar lote"
-                >
-                  <Trash2 size={16} />
-                </button>
+              <li key={l.id}>
+                <Card>
+                  <CardContent className="pt-3.5">
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="min-w-0">
+                        <div className="flex flex-wrap items-center gap-2 mb-1">
+                          <span
+                            className="font-semibold text-[15px]"
+                            style={{ color: "var(--color-tierra)" }}
+                          >
+                            {l.nombre}
+                          </span>
+                          <Badge variant={st.variant}>{st.label}</Badge>
+                        </div>
+                        <p className="text-sm" style={{ color: "rgba(26,26,24,0.55)" }}>
+                          {[l.cultivo, l.hectareas != null ? `${l.hectareas} ha` : null]
+                            .filter(Boolean)
+                            .join(" · ") || "Sin cultivo / ha"}
+                        </p>
+                        {l.fecha_siembra && (
+                          <p className="text-xs mt-1" style={{ color: "rgba(26,26,24,0.4)" }}>
+                            Siembra {l.fecha_siembra}
+                          </p>
+                        )}
+                        {l.notas && (
+                          <p
+                            className="text-xs mt-1 line-clamp-2"
+                            style={{ color: "rgba(26,26,24,0.4)" }}
+                          >
+                            {l.notas}
+                          </p>
+                        )}
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => handleDelete(l.id)}
+                        className="p-2 rounded-xl min-h-12 min-w-12 flex items-center justify-center touch-manipulation shrink-0"
+                        style={{ color: "#dc2626", backgroundColor: "rgba(220,38,38,0.06)" }}
+                        aria-label="Borrar lote"
+                      >
+                        <Trash2 size={16} />
+                      </button>
+                    </div>
+                  </CardContent>
+                </Card>
               </li>
             );
           })}
         </ul>
+      )}
+
+      {!schemaMissing && (
+        <button
+          type="button"
+          className="fab-field"
+          onClick={() => {
+            setError(null);
+            setShowModal(true);
+          }}
+          aria-label="Nuevo lote"
+        >
+          <Plus size={18} strokeWidth={2.4} />
+          <span className="hidden xs:inline">Lote</span>
+        </button>
       )}
 
       {showModal && (

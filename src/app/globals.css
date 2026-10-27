@@ -192,3 +192,124 @@ textarea {
 .safe-bottom {
   padding-bottom: env(safe-area-inset-bottom, 0px);
 }
+
+/* ─── UI mobile 2026-10 polish ───────────────────────────────────────────── */
+
+.section-title {
+  font-family: var(--font-playfair), Georgia, serif;
+  font-size: 0.9375rem;
+  font-weight: 600;
+  color: var(--color-tierra);
+  letter-spacing: -0.01em;
+}
+
+.kpi-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.5rem;
+}
+
+@media (min-width: 1024px) {
+  .kpi-grid {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 0.75rem;
+  }
+}
+
+.quick-actions {
+  display: flex;
+  gap: 0.5rem;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: none;
+  padding-bottom: 0.125rem;
+}
+
+.quick-actions::-webkit-scrollbar {
+  display: none;
+}
+
+.quick-action {
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  min-height: 2.75rem;
+  padding: 0.5rem 0.875rem;
+  border-radius: 0.875rem;
+  background: #ffffff;
+  border: 1px solid rgba(212, 197, 169, 0.55);
+  box-shadow: 0 1px 2px rgba(26, 26, 24, 0.04);
+  color: var(--color-tierra);
+  font-size: 0.75rem;
+  font-weight: 600;
+  touch-action: manipulation;
+  text-decoration: none;
+  white-space: nowrap;
+}
+
+.quick-action:active {
+  background: rgba(58, 74, 50, 0.05);
+}
+
+.quick-action__icon {
+  width: 1.75rem;
+  height: 1.75rem;
+  border-radius: 0.5rem;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(58, 74, 50, 0.1);
+  color: var(--color-campo);
+  flex-shrink: 0;
+}
+
+/* FAB sticky sobre bottom nav (mobile) */
+.fab-field {
+  position: fixed;
+  right: 1rem;
+  bottom: calc(4.5rem + env(safe-area-inset-bottom, 0px));
+  z-index: 35;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.4rem;
+  min-height: 3rem;
+  min-width: 3rem;
+  padding: 0 1.1rem;
+  border-radius: 1rem;
+  background: var(--color-campo);
+  color: #fff;
+  font-size: 0.875rem;
+  font-weight: 600;
+  box-shadow: 0 8px 20px rgba(58, 74, 50, 0.28);
+  touch-action: manipulation;
+  border: none;
+}
+
+@media (min-width: 768px) {
+  .fab-field {
+    display: none;
+  }
+}
+
+.empty-state {
+  border-radius: 1.25rem;
+  background: #ffffff;
+  border: 1px dashed rgba(212, 197, 169, 0.85);
+  padding: 2rem 1.25rem;
+  text-align: center;
+}
+
+.list-stack {
+  display: flex;
+  flex-direction: column;
+  gap: 0.625rem;
+}
+
+.nav-active-dot {
+  width: 0.25rem;
+  height: 0.25rem;
+  border-radius: 999px;
+  background: var(--color-campo);
+}

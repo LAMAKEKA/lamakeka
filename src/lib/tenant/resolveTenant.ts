@@ -6,6 +6,7 @@ import {
   MAKEKA_LEGACY_MODULES,
   looksLikeMakekaTenant,
 } from "@/lib/modules/defaults";
+import { parseBrandTheme } from "./brandTheme";
 import type { TenantConfig, EstablecimientoTipo } from "./types";
 
 export type EstablecimientoRow = {
@@ -57,14 +58,9 @@ export function mapEstablecimientoRow(row: EstablecimientoRow): TenantConfig {
       ? [...row.rubros]
       : [...defaultRubrosForTipo(tipo)];
 
-  let brandTheme: Record<string, string> | null = null;
-  if (row.brand_theme && typeof row.brand_theme === "object") {
-    brandTheme = {};
-    for (const [k, v] of Object.entries(row.brand_theme)) {
-      if (typeof v === "string") brandTheme[k] = v;
-    }
-    if (Object.keys(brandTheme).length === 0) brandTheme = null;
-  }
+  const brandTheme = parseBrandTheme(
+    row.brand_theme as Record<string, unknown> | null | undefined
+  );
 
   const display = (row.nombre_display?.trim() || row.nombre).trim();
   const makeka = looksLikeMakekaTenant({
@@ -73,11 +69,17 @@ export function mapEstablecimientoRow(row: EstablecimientoRow): TenantConfig {
     slug: row.slug,
   });
 
+  // Genérico sin logo propio: no forzar Makeka; el shell muestra iniciales.
+  const logoRaw = row.logo_url?.trim() || "";
+  const logoUrl =
+    logoRaw ||
+    (makeka ? defaultLogoUrl() : "");
+
   return {
     establecimientoId: row.id,
     nombre: row.nombre,
     nombreDisplay: display,
-    logoUrl: row.logo_url?.trim() || defaultLogoUrl(),
+    logoUrl,
     // Makeka real: tagline histórico. Genérico: por tipo o el guardado.
     tagline:
       row.tagline?.trim() ||

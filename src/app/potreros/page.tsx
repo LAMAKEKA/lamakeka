@@ -14,6 +14,13 @@ import { usePotreros } from "@/hooks/usePotreros";
 import { useSupabaseManga, type MangaAnimal, type UpdateAnimalPayload } from "@/hooks/useSupabaseManga";
 import { AnimalFichaDrawer } from "@/components/hacienda/AnimalFichaDrawer";
 import type { HaciendaAnimalRow } from "@/hooks/useHaciendaAnimales";
+import { ImportModal } from "@/components/import-modal";
+import {
+  mapPotreroImportRow,
+  POTREROS_COLUMNS,
+  POTREROS_TEMPLATE,
+  validatePotreroRow,
+} from "@/lib/potrerosImport";
 
 const PotrerosMap = dynamic(() => import("@/components/map/potrero-map"), {
   ssr: false,
@@ -52,11 +59,51 @@ const TABS = [
   { key: "mapa", label: "Mapa" },
 ];
 
-const CARGA_OPTIONS = [
-  { icon: Plus,           iconBg: "rgba(58,74,50,0.10)",   iconColor: "var(--color-campo)", title: "Ingresar Manualmente", description: "Cargá los datos de tu potrero uno a uno" },
-  { icon: FileSpreadsheet, iconBg: "rgba(37,99,235,0.08)", iconColor: "#2563eb",              title: "CSV o Excel",           description: "Importá desde una planilla existente" },
-  { icon: MapIcon,            iconBg: "rgba(139,78,42,0.10)",  iconColor: "var(--color-cuero)", title: "KMZ de Google Earth",   description: "Usá tu archivo de trazado de potreros" },
-  { icon: ImageIcon,      iconBg: "rgba(217,119,6,0.10)",  iconColor: "#d97706",              title: "Imagen de croquis",    description: "Subí una foto o plano de tu campo" },
+type CargaAction = "manual" | "import" | "soon";
+
+const CARGA_OPTIONS: {
+  icon: typeof Plus;
+  iconBg: string;
+  iconColor: string;
+  title: string;
+  description: string;
+  action: CargaAction;
+  badge?: string;
+}[] = [
+  {
+    icon: Plus,
+    iconBg: "rgba(58,74,50,0.10)",
+    iconColor: "var(--color-campo)",
+    title: "Ingresar manualmente",
+    description: "Cargá los datos de tu potrero uno a uno",
+    action: "manual",
+  },
+  {
+    icon: FileSpreadsheet,
+    iconBg: "rgba(37,99,235,0.08)",
+    iconColor: "#2563eb",
+    title: "CSV o Excel",
+    description: "Importá desde una planilla (.xlsx / .csv)",
+    action: "import",
+  },
+  {
+    icon: MapIcon,
+    iconBg: "rgba(139,78,42,0.10)",
+    iconColor: "var(--color-cuero)",
+    title: "KMZ de Google Earth",
+    description: "Trazado de potreros desde Earth",
+    action: "soon",
+    badge: "Pronto",
+  },
+  {
+    icon: ImageIcon,
+    iconBg: "rgba(217,119,6,0.10)",
+    iconColor: "#d97706",
+    title: "Imagen de croquis",
+    description: "Foto o plano del campo",
+    action: "soon",
+    badge: "Pronto",
+  },
 ];
 
 const FORM_EMPTY = {
@@ -244,42 +291,134 @@ function NuevoPotreroModal({ establecimientoId, onClose, onCreated, editData }: 
 
 // ─── Empty state ──────────────────────────────────────────────────────────────
 
-function EmptyStatePotreros({ onManual }: { onManual: () => void }) {
+function EmptyStatePotreros({
+  onManual,
+  onImport,
+}: {
+  onManual: () => void;
+  onImport: () => void;
+}) {
   return (
-    <div className="flex flex-col items-center py-10">
-      <div className="w-full max-w-2xl rounded-2xl p-8 mb-6" style={{ backgroundColor: "#ffffff", border: "1px solid rgba(212,197,169,0.5)", boxShadow: "0 1px 3px rgba(26,26,24,0.06)" }}>
-        <div className="text-center mb-8">
-          <div className="inline-flex items-center justify-center w-14 h-14 rounded-2xl mb-4" style={{ backgroundColor: "rgba(58,74,50,0.08)" }}>
+    <div className="flex flex-col items-center py-6 md:py-10 px-1">
+      <div
+        className="w-full max-w-2xl rounded-2xl p-5 sm:p-8 mb-4"
+        style={{
+          backgroundColor: "#ffffff",
+          border: "1px solid rgba(212,197,169,0.5)",
+          boxShadow: "0 1px 3px rgba(26,26,24,0.06)",
+        }}
+      >
+        <div className="text-center mb-6 md:mb-8">
+          <div
+            className="inline-flex items-center justify-center w-14 h-14 rounded-2xl mb-4"
+            style={{ backgroundColor: "rgba(58,74,50,0.08)" }}
+          >
             <MapIcon size={26} style={{ color: "var(--color-campo)" }} strokeWidth={1.5} />
           </div>
-          <h3 className="text-xl font-bold mb-2" style={{ color: "var(--color-tierra)", fontFamily: "var(--font-playfair), Georgia, serif" }}>Configurá tus potreros</h3>
-          <p className="text-sm max-w-sm mx-auto" style={{ color: "rgba(26,26,24,0.45)" }}>Elegí cómo querés cargar la información.</p>
+          <h3
+            className="text-xl font-bold mb-2"
+            style={{ color: "var(--color-tierra)", fontFamily: "var(--font-playfair), Georgia, serif" }}
+          >
+            Configurá tus potreros
+          </h3>
+          <p className="text-sm max-w-sm mx-auto leading-relaxed" style={{ color: "rgba(26,26,24,0.45)" }}>
+            Elegí cómo querés cargar la información del campo.
+          </p>
         </div>
-        <div className="grid grid-cols-2 gap-3">
-          {CARGA_OPTIONS.map(({ icon: Icon, iconBg, iconColor, title, description }, i) => (
-            <button key={title} onClick={i === 0 ? onManual : undefined}
-              className="flex items-start gap-4 p-4 rounded-xl text-left transition-all"
-              style={{ border: "1.5px solid rgba(212,197,169,0.5)", backgroundColor: "transparent" }}
-              onMouseEnter={(e) => { (e.currentTarget as HTMLButtonElement).style.borderColor = "var(--color-campo)"; (e.currentTarget as HTMLButtonElement).style.backgroundColor = "rgba(58,74,50,0.03)"; }}
-              onMouseLeave={(e) => { (e.currentTarget as HTMLButtonElement).style.borderColor = "rgba(212,197,169,0.5)"; (e.currentTarget as HTMLButtonElement).style.backgroundColor = "transparent"; }}>
-              <div className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0" style={{ backgroundColor: iconBg }}>
-                <Icon size={18} style={{ color: iconColor }} strokeWidth={1.7} />
-              </div>
-              <div>
-                <p className="text-sm font-semibold mb-0.5" style={{ color: "var(--color-tierra)" }}>{title}</p>
-                <p className="text-xs" style={{ color: "rgba(26,26,24,0.45)" }}>{description}</p>
-              </div>
-            </button>
-          ))}
+
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          {CARGA_OPTIONS.map(({ icon: Icon, iconBg, iconColor, title, description, action, badge }) => {
+            const enabled = action !== "soon";
+            return (
+              <button
+                key={title}
+                type="button"
+                disabled={!enabled}
+                onClick={() => {
+                  if (action === "manual") onManual();
+                  if (action === "import") onImport();
+                }}
+                className="flex items-start gap-3 p-4 rounded-xl text-left transition-all min-h-[88px] touch-manipulation disabled:cursor-not-allowed"
+                style={{
+                  border: "1.5px solid rgba(212,197,169,0.5)",
+                  backgroundColor: enabled ? "transparent" : "rgba(240,237,230,0.35)",
+                  opacity: enabled ? 1 : 0.72,
+                }}
+                onMouseEnter={(e) => {
+                  if (!enabled) return;
+                  (e.currentTarget as HTMLButtonElement).style.borderColor = "var(--color-campo)";
+                  (e.currentTarget as HTMLButtonElement).style.backgroundColor = "rgba(58,74,50,0.03)";
+                }}
+                onMouseLeave={(e) => {
+                  (e.currentTarget as HTMLButtonElement).style.borderColor = "rgba(212,197,169,0.5)";
+                  (e.currentTarget as HTMLButtonElement).style.backgroundColor = enabled
+                    ? "transparent"
+                    : "rgba(240,237,230,0.35)";
+                }}
+              >
+                <div
+                  className="w-11 h-11 rounded-xl flex items-center justify-center shrink-0"
+                  style={{ backgroundColor: iconBg }}
+                >
+                  <Icon size={18} style={{ color: iconColor }} strokeWidth={1.7} />
+                </div>
+                <div className="min-w-0 flex-1 flex flex-col gap-1 justify-center">
+                  <div className="flex items-start justify-between gap-2">
+                    <p
+                      className="text-sm font-semibold leading-snug"
+                      style={{ color: "var(--color-tierra)" }}
+                    >
+                      {title}
+                    </p>
+                    {badge && (
+                      <span
+                        className="shrink-0 text-[10px] font-semibold uppercase tracking-wide px-2 py-0.5 rounded-full"
+                        style={{ backgroundColor: "rgba(212,197,169,0.45)", color: "rgba(26,26,24,0.55)" }}
+                      >
+                        {badge}
+                      </span>
+                    )}
+                  </div>
+                  <p className="text-xs leading-snug" style={{ color: "rgba(26,26,24,0.45)" }}>
+                    {description}
+                  </p>
+                </div>
+              </button>
+            );
+          })}
         </div>
       </div>
-      <div className="w-full max-w-2xl rounded-2xl p-8 flex flex-col items-center border-2 border-dashed" style={{ borderColor: "rgba(212,197,169,0.6)", backgroundColor: "rgba(240,237,230,0.3)" }}>
-        <div className="w-12 h-12 rounded-xl flex items-center justify-center mb-3" style={{ backgroundColor: "rgba(212,197,169,0.3)" }}>
-          <Upload size={20} style={{ color: "var(--color-cuero)" }} strokeWidth={1.6} />
+
+      <button
+        type="button"
+        onClick={onImport}
+        className="w-full max-w-2xl rounded-2xl p-6 sm:p-8 flex flex-col items-center border-2 border-dashed touch-manipulation transition-colors"
+        style={{
+          borderColor: "rgba(212,197,169,0.6)",
+          backgroundColor: "rgba(240,237,230,0.3)",
+        }}
+        onMouseEnter={(e) => {
+          (e.currentTarget as HTMLButtonElement).style.borderColor = "var(--color-campo)";
+          (e.currentTarget as HTMLButtonElement).style.backgroundColor = "rgba(58,74,50,0.04)";
+        }}
+        onMouseLeave={(e) => {
+          (e.currentTarget as HTMLButtonElement).style.borderColor = "rgba(212,197,169,0.6)";
+          (e.currentTarget as HTMLButtonElement).style.backgroundColor = "rgba(240,237,230,0.3)";
+        }}
+      >
+        <div
+          className="w-12 h-12 rounded-xl flex items-center justify-center mb-3"
+          style={{ backgroundColor: "rgba(37,99,235,0.08)" }}
+        >
+          <Upload size={20} style={{ color: "#2563eb" }} strokeWidth={1.6} />
         </div>
-        <p className="text-sm font-medium mb-1" style={{ color: "rgba(26,26,24,0.55)" }}>Arrastrá un archivo acá</p>
-        <p className="text-xs" style={{ color: "rgba(26,26,24,0.35)" }}>Soporta CSV, Excel, KMZ, JPG, PNG</p>
-      </div>
+        <p className="text-sm font-semibold mb-1 text-center" style={{ color: "var(--color-tierra)" }}>
+          Importar planilla Excel / CSV
+        </p>
+        <p className="text-xs text-center leading-relaxed max-w-xs" style={{ color: "rgba(26,26,24,0.45)" }}>
+          Tocá acá para subir el archivo. Descargá la plantilla desde el modal.
+        </p>
+      </button>
     </div>
   );
 }
@@ -292,6 +431,7 @@ export default function PotrerosPage() {
   const [loading, setLoading] = useState(true);
   const [establecimientoId, setEstablecimientoId] = useState<string | null>(null);
   const [showModal, setShowModal] = useState(false);
+  const [showImportModal, setShowImportModal] = useState(false);
   const [openMenuId, setOpenMenuId] = useState<string | null>(null);
   const [editPotrero, setEditPotrero] = useState<Potrero | null>(null);
   const [stockAnimals, setStockAnimals] = useState<HaciendaAnimalRow[]>([]);
@@ -422,6 +562,19 @@ export default function PotrerosPage() {
     setSelectedAnimal(null);
   }
 
+  async function handleImport(validRows: Record<string, unknown>[]) {
+    if (!establecimientoId) throw new Error("No se encontró el establecimiento.");
+    const supabase = createClient();
+    const toInsert = validRows.map((r) => ({
+      establecimiento_id: establecimientoId,
+      ...mapPotreroImportRow(r),
+    }));
+
+    const { error } = await supabase.from("potreros").insert(toInsert);
+    if (error) throw new Error(error.message);
+    await fetchData();
+  }
+
   return (
     <>
       {showModal && establecimientoId && (
@@ -430,6 +583,17 @@ export default function PotrerosPage() {
       {editPotrero && establecimientoId && (
         <NuevoPotreroModal establecimientoId={establecimientoId} editData={editPotrero}
           onClose={() => setEditPotrero(null)} onCreated={fetchData} />
+      )}
+      {showImportModal && establecimientoId && (
+        <ImportModal
+          title="Importar Potreros"
+          columns={POTREROS_COLUMNS}
+          templateFilename="Plantilla_Potreros.xlsx"
+          templateExample={POTREROS_TEMPLATE}
+          validateRow={validatePotreroRow}
+          onConfirm={handleImport}
+          onClose={() => setShowImportModal(false)}
+        />
       )}
       {selectedAnimal && establecimientoId && (
         <AnimalFichaDrawer
@@ -446,14 +610,34 @@ export default function PotrerosPage() {
 
       <div className="flex flex-col min-h-full">
         <div className="px-4 md:px-8 pt-7 pb-5 border-b" style={{ backgroundColor: "#ffffff", borderColor: "rgba(212,197,169,0.5)" }}>
-          <div className="flex items-center justify-between">
-            <div>
+          <div className="flex items-center justify-between gap-3">
+            <div className="min-w-0">
               <p className="text-xs font-medium tracking-widest uppercase mb-1" style={{ color: "rgba(26,26,24,0.38)" }}>Gestión</p>
               <h1 className="text-2xl font-bold leading-tight" style={{ color: "var(--color-tierra)", fontFamily: "var(--font-playfair), Georgia, serif" }}>Potreros</h1>
             </div>
-            <button onClick={() => setShowModal(true)} className="flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-semibold text-white hover:opacity-90" style={{ backgroundColor: "var(--color-campo)" }}>
-              <Plus size={16} strokeWidth={2.5} />Nuevo Potrero
-            </button>
+            <div className="flex items-center gap-2 shrink-0">
+              {!loading && (
+                <button
+                  type="button"
+                  onClick={() => setShowImportModal(true)}
+                  className="flex items-center gap-2 px-3 sm:px-4 py-2.5 rounded-xl text-sm font-semibold touch-manipulation"
+                  style={{ border: "1.5px solid rgba(212,197,169,0.8)", color: "var(--color-tierra)", backgroundColor: "transparent" }}
+                >
+                  <Upload size={15} strokeWidth={2} />
+                  <span className="hidden sm:inline">Importar</span>
+                </button>
+              )}
+              <button
+                type="button"
+                onClick={() => setShowModal(true)}
+                className="flex items-center gap-2 px-4 sm:px-5 py-2.5 rounded-xl text-sm font-semibold text-white hover:opacity-90 touch-manipulation"
+                style={{ backgroundColor: "var(--color-campo)" }}
+              >
+                <Plus size={16} strokeWidth={2.5} />
+                <span className="hidden sm:inline">Nuevo Potrero</span>
+                <span className="sm:hidden">Nuevo</span>
+              </button>
+            </div>
           </div>
         </div>
 
@@ -477,7 +661,10 @@ export default function PotrerosPage() {
             </div>
           ) : activeTab === "potreros" ? (
             potreros.length === 0 ? (
-              <EmptyStatePotreros onManual={() => setShowModal(true)} />
+              <EmptyStatePotreros
+                onManual={() => setShowModal(true)}
+                onImport={() => setShowImportModal(true)}
+              />
             ) : (
               <div className="flex flex-col gap-4">
                 {/* Summary */}

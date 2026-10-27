@@ -1,8 +1,8 @@
 "use client";
 
-import { useState } from "react";
+import { useRef, useState } from "react";
 import Image from "next/image";
-import { Loader2, AlertCircle, Check } from "lucide-react";
+import { Loader2, AlertCircle, Check, Upload, ImageIcon, X } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import {
   buildEstablecimientoInsert,
@@ -10,6 +10,17 @@ import {
   toLegacyEstablecimientoInsert,
 } from "@/lib/tenant/buildEstablecimientoInsert";
 import type { EstablecimientoTipo } from "@/lib/tenant/types";
+import {
+  BRAND_PRESETS,
+  MAKEKA_BRAND,
+  type BrandTheme,
+} from "@/lib/tenant/brandTheme";
+import {
+  LOGO_ACCEPT,
+  uploadEstablecimientoLogo,
+  validateLogoFile,
+} from "@/lib/tenant/uploadEstablecimientoLogo";
+import { BrandMark } from "@/components/brand-mark";
 
 const PROVINCIAS = [
   "Buenos Aires",
@@ -70,6 +81,42 @@ export default function SetupPage() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  // Branding (opcional en registro)
+  const [logoPreview, setLogoPreview] = useState<string | null>(null);
+  const [logoFile, setLogoFile] = useState<File | null>(null);
+  const [campoColor, setCampoColor] = useState<string>(MAKEKA_BRAND.campo);
+  const [cueroColor, setCueroColor] = useState<string>(MAKEKA_BRAND.cuero);
+  const [presetId, setPresetId] = useState<string | "custom">("olivo");
+  const fileRef = useRef<HTMLInputElement>(null);
+
+  function pickPreset(id: string) {
+    const p = BRAND_PRESETS.find((x) => x.id === id);
+    if (!p) return;
+    setPresetId(id);
+    setCampoColor(p.campo);
+    setCueroColor(p.cuero);
+  }
+
+  function onLogoPick(file: File | null) {
+    if (!file) return;
+    const invalid = validateLogoFile(file);
+    if (invalid) {
+      setError(invalid);
+      return;
+    }
+    setError(null);
+    if (logoPreview?.startsWith("blob:")) URL.revokeObjectURL(logoPreview);
+    setLogoFile(file);
+    setLogoPreview(URL.createObjectURL(file));
+  }
+
+  function clearLogo() {
+    if (logoPreview?.startsWith("blob:")) URL.revokeObjectURL(logoPreview);
+    setLogoFile(null);
+    setLogoPreview(null);
+    if (fileRef.current) fileRef.current.value = "";
+  }
+
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     if (!tipo) {
@@ -89,12 +136,31 @@ export default function SetupPage() {
       return;
     }
 
+    let logoUrl: string | null = null;
+    if (logoFile) {
+      const up = await uploadEstablecimientoLogo(supabase, user.id, logoFile);
+      if ("error" in up) {
+        // No bloqueamos el alta del campo: avisamos y seguimos sin logo.
+        console.warn("[setup] logo upload failed", up.error);
+        setError(up.error);
+        // Si el user quiere igual crear el campo, dejamos pasar con un 2º click
+        // — pero en 1º intento con error de storage sí cortamos para que vea el msg.
+        setLoading(false);
+        return;
+      }
+      logoUrl = up.publicUrl;
+    }
+
+    const brandTheme: BrandTheme = { campo: campoColor, cuero: cueroColor };
+
     const fullPayload = buildEstablecimientoInsert({
       nombre,
       ubicacion,
       tipo,
       userId: user.id,
       email: user.email,
+      logoUrl: logoUrl ?? "",
+      brandTheme,
     });
 
     const { error: insertError } = await supabase
@@ -108,6 +174,7 @@ export default function SetupPage() {
         return;
       }
 
+      // Fallback: sin brand_theme / logo si la col no existe en cloud viejo
       const legacyRes = await supabase
         .from("establecimientos")
         .insert(toLegacyEstablecimientoInsert(fullPayload));
@@ -122,8 +189,22 @@ export default function SetupPage() {
         return;
       }
 
+      // Reintento parcial platform cols (logo + theme) best-effort
+      await supabase
+        .from("establecimientos")
+        .update({
+          nombre_display: fullPayload.nombre_display,
+          logo_url: fullPayload.logo_url,
+          tagline: fullPayload.tagline,
+          rubros: fullPayload.rubros,
+          modules_enabled: fullPayload.modules_enabled,
+          brand_theme: fullPayload.brand_theme,
+          is_platform_demo: fullPayload.is_platform_demo,
+        })
+        .eq("user_id", user.id);
+
       console.warn(
-        "[setup] insert platform cols failed; saved legacy row only",
+        "[setup] insert platform cols failed; saved legacy + patch",
         insertError.message
       );
     }
@@ -131,6 +212,8 @@ export default function SetupPage() {
     // Hard nav: proxy + useTenant leen la fila nueva con cookies frescas.
     window.location.assign("/");
   }
+
+  const previewName = nombre.trim() || "Tu campo";
 
   return (
     <div
@@ -157,12 +240,12 @@ export default function SetupPage() {
             Configurá tu establecimiento
           </h1>
           <p className="text-sm mt-2" style={{ color: "rgba(26,26,24,0.45)" }}>
-            El nombre del campo es el de tu establecimiento. La navegación
-            se arma según el tipo: ganadero, agrícola o mixto.
+            Nombre, tipo, y si querés logo + colores propios (así no se ve igual
+            a La Makeka).
           </p>
         </div>
 
-        {/* Progress indicator */}
+        {/* Progress */}
         <div className="flex items-center justify-center gap-2 mb-8">
           {[
             { n: 1, label: "Cuenta", done: true },
@@ -205,9 +288,8 @@ export default function SetupPage() {
           ))}
         </div>
 
-        {/* Card */}
         <div
-          className="rounded-2xl p-8"
+          className="rounded-2xl p-6 sm:p-8"
           style={{
             backgroundColor: "#ffffff",
             boxShadow:
@@ -216,7 +298,7 @@ export default function SetupPage() {
           }}
         >
           <form onSubmit={handleSubmit} className="space-y-6">
-            {/* Nombre del establecimiento */}
+            {/* Nombre */}
             <div>
               <label
                 className="block text-sm font-medium mb-1.5"
@@ -248,7 +330,7 @@ export default function SetupPage() {
               />
             </div>
 
-            {/* Ubicación */}
+            {/* Provincia */}
             <div>
               <label
                 className="block text-sm font-medium mb-1.5"
@@ -267,14 +349,6 @@ export default function SetupPage() {
                     backgroundColor: "var(--color-pampa)",
                     color: ubicacion ? "var(--color-tierra)" : "rgba(26,26,24,0.35)",
                   }}
-                  onFocus={(e) => {
-                    e.target.style.borderColor = "var(--color-cuero)";
-                    e.target.style.boxShadow = "0 0 0 3px rgba(139,78,42,0.08)";
-                  }}
-                  onBlur={(e) => {
-                    e.target.style.borderColor = "rgba(212,197,169,0.8)";
-                    e.target.style.boxShadow = "none";
-                  }}
                 >
                   <option value="" disabled>
                     Seleccioná una provincia
@@ -285,7 +359,6 @@ export default function SetupPage() {
                     </option>
                   ))}
                 </select>
-                {/* chevron */}
                 <svg
                   className="absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none"
                   width="16"
@@ -301,7 +374,7 @@ export default function SetupPage() {
               </div>
             </div>
 
-            {/* Tipo de campo */}
+            {/* Tipo */}
             <div>
               <label
                 className="block text-sm font-medium mb-3"
@@ -317,7 +390,7 @@ export default function SetupPage() {
                       key={t.id}
                       type="button"
                       onClick={() => setTipo(t.id)}
-                      className="relative flex flex-col items-center gap-2 p-4 rounded-xl text-center transition-all"
+                      className="relative flex flex-col items-center gap-2 p-4 rounded-xl text-center transition-all touch-manipulation"
                       style={{
                         border: isSelected
                           ? "2px solid var(--color-cuero)"
@@ -347,7 +420,7 @@ export default function SetupPage() {
                         {t.label}
                       </span>
                       <span
-                        className="text-xs leading-snug"
+                        className="text-xs leading-snug hidden sm:block"
                         style={{ color: "rgba(26,26,24,0.45)" }}
                       >
                         {t.desc}
@@ -358,7 +431,215 @@ export default function SetupPage() {
               </div>
             </div>
 
-            {/* Error */}
+            {/* Branding */}
+            <div
+              className="rounded-2xl p-4 space-y-4"
+              style={{
+                backgroundColor: "rgba(240,237,230,0.45)",
+                border: "1px solid rgba(212,197,169,0.55)",
+              }}
+            >
+              <div>
+                <p
+                  className="text-sm font-semibold"
+                  style={{ color: "var(--color-tierra)" }}
+                >
+                  Identidad del campo{" "}
+                  <span className="font-normal" style={{ color: "rgba(26,26,24,0.4)" }}>
+                    (opcional)
+                  </span>
+                </p>
+                <p className="text-xs mt-0.5" style={{ color: "rgba(26,26,24,0.45)" }}>
+                  Logo y colores para el menú y botones. Lo podés cambiar después en Mi campo.
+                </p>
+              </div>
+
+              {/* Preview */}
+              <div
+                className="flex items-center gap-3 p-3 rounded-xl"
+                style={{ backgroundColor: campoColor }}
+              >
+                <BrandMark
+                  logoUrl={logoPreview}
+                  name={previewName}
+                  size={44}
+                />
+                <div className="min-w-0 flex-1">
+                  <p
+                    className="text-white font-bold truncate"
+                    style={{ fontFamily: "var(--font-playfair), Georgia, serif" }}
+                  >
+                    {previewName}
+                  </p>
+                  <p className="text-[10px] uppercase tracking-wider" style={{ color: "rgba(255,255,255,0.65)" }}>
+                    Vista previa del menú
+                  </p>
+                </div>
+                <div
+                  className="w-8 h-8 rounded-full shrink-0 border-2 border-white/40"
+                  style={{ backgroundColor: cueroColor }}
+                  title="Acento"
+                />
+              </div>
+
+              {/* Logo upload */}
+              <div>
+                <label
+                  className="block text-xs font-medium mb-2"
+                  style={{ color: "var(--color-tierra)" }}
+                >
+                  Logo
+                </label>
+                <div className="flex items-center gap-3 flex-wrap">
+                  <button
+                    type="button"
+                    onClick={() => fileRef.current?.click()}
+                    className="flex items-center gap-2 px-3.5 py-2.5 rounded-xl text-sm font-semibold touch-manipulation"
+                    style={{
+                      border: "1.5px solid rgba(212,197,169,0.8)",
+                      color: "var(--color-tierra)",
+                      backgroundColor: "#fff",
+                    }}
+                  >
+                    <Upload size={15} />
+                    {logoFile ? "Cambiar archivo" : "Subir logo"}
+                  </button>
+                  {logoPreview && (
+                    <button
+                      type="button"
+                      onClick={clearLogo}
+                      className="flex items-center gap-1.5 text-xs font-medium px-2 py-2 rounded-lg"
+                      style={{ color: "#dc2626" }}
+                    >
+                      <X size={14} /> Quitar
+                    </button>
+                  )}
+                  {!logoPreview && (
+                    <span className="text-xs flex items-center gap-1" style={{ color: "rgba(26,26,24,0.4)" }}>
+                      <ImageIcon size={13} /> PNG / JPG / WEBP · máx 2 MB
+                    </span>
+                  )}
+                </div>
+                <input
+                  ref={fileRef}
+                  type="file"
+                  accept={LOGO_ACCEPT}
+                  className="hidden"
+                  onChange={(e) => {
+                    onLogoPick(e.target.files?.[0] ?? null);
+                    e.target.value = "";
+                  }}
+                />
+              </div>
+
+              {/* Color presets */}
+              <div>
+                <label
+                  className="block text-xs font-medium mb-2"
+                  style={{ color: "var(--color-tierra)" }}
+                >
+                  Paleta
+                </label>
+                <div className="grid grid-cols-3 sm:grid-cols-6 gap-2">
+                  {BRAND_PRESETS.map((p) => {
+                    const active = presetId === p.id;
+                    return (
+                      <button
+                        key={p.id}
+                        type="button"
+                        onClick={() => pickPreset(p.id)}
+                        className="flex flex-col items-center gap-1.5 p-2 rounded-xl touch-manipulation"
+                        style={{
+                          border: active
+                            ? "2px solid var(--color-cuero)"
+                            : "1.5px solid rgba(212,197,169,0.6)",
+                          backgroundColor: active ? "rgba(139,78,42,0.06)" : "#fff",
+                        }}
+                      >
+                        <span className="flex gap-0.5">
+                          <span
+                            className="w-5 h-5 rounded-md"
+                            style={{ backgroundColor: p.campo }}
+                          />
+                          <span
+                            className="w-5 h-5 rounded-md"
+                            style={{ backgroundColor: p.cuero }}
+                          />
+                        </span>
+                        <span className="text-[10px] font-medium" style={{ color: "var(--color-tierra)" }}>
+                          {p.label}
+                        </span>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+
+              {/* Custom hex */}
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-[11px] mb-1" style={{ color: "rgba(26,26,24,0.5)" }}>
+                    Color principal (menú)
+                  </label>
+                  <div className="flex items-center gap-2">
+                    <input
+                      type="color"
+                      value={campoColor}
+                      onChange={(e) => {
+                        setPresetId("custom");
+                        setCampoColor(e.target.value.toUpperCase());
+                      }}
+                      className="w-10 h-10 rounded-lg cursor-pointer border-0 bg-transparent"
+                    />
+                    <input
+                      type="text"
+                      value={campoColor}
+                      onChange={(e) => {
+                        setPresetId("custom");
+                        setCampoColor(e.target.value);
+                      }}
+                      className="flex-1 px-3 py-2 rounded-lg text-xs font-mono outline-none"
+                      style={{
+                        border: "1.5px solid rgba(212,197,169,0.8)",
+                        backgroundColor: "#fff",
+                        color: "var(--color-tierra)",
+                      }}
+                    />
+                  </div>
+                </div>
+                <div>
+                  <label className="block text-[11px] mb-1" style={{ color: "rgba(26,26,24,0.5)" }}>
+                    Color acento
+                  </label>
+                  <div className="flex items-center gap-2">
+                    <input
+                      type="color"
+                      value={cueroColor}
+                      onChange={(e) => {
+                        setPresetId("custom");
+                        setCueroColor(e.target.value.toUpperCase());
+                      }}
+                      className="w-10 h-10 rounded-lg cursor-pointer border-0 bg-transparent"
+                    />
+                    <input
+                      type="text"
+                      value={cueroColor}
+                      onChange={(e) => {
+                        setPresetId("custom");
+                        setCueroColor(e.target.value);
+                      }}
+                      className="flex-1 px-3 py-2 rounded-lg text-xs font-mono outline-none"
+                      style={{
+                        border: "1.5px solid rgba(212,197,169,0.8)",
+                        backgroundColor: "#fff",
+                        color: "var(--color-tierra)",
+                      }}
+                    />
+                  </div>
+                </div>
+              </div>
+            </div>
+
             {error && (
               <div
                 className="flex items-center gap-2 px-4 py-3 rounded-xl text-sm"
@@ -373,13 +654,12 @@ export default function SetupPage() {
               </div>
             )}
 
-            {/* Submit */}
             <button
               type="submit"
               disabled={loading}
-              className="w-full py-3.5 rounded-xl text-sm font-semibold flex items-center justify-center gap-2 transition-opacity"
+              className="w-full py-3.5 rounded-xl text-sm font-semibold flex items-center justify-center gap-2 transition-opacity touch-manipulation"
               style={{
-                backgroundColor: "var(--color-campo)",
+                backgroundColor: campoColor || "var(--color-campo)",
                 color: "#ffffff",
                 opacity: loading ? 0.7 : 1,
               }}

@@ -73,13 +73,13 @@ export function MobileBottomNav({ onMore, tenantState }: MobileBottomNavProps) {
                 className="flex flex-col items-center justify-end pb-1.5 gap-0.5 relative h-14 touch-manipulation"
               >
                 <span
-                  className="absolute left-1/2 -translate-x-1/2 -top-3 w-11 h-11 rounded-xl flex items-center justify-center text-white"
+                  className="absolute left-1/2 -translate-x-1/2 -top-3.5 w-12 h-12 rounded-2xl flex items-center justify-center text-white"
                   style={{
                     backgroundColor: active ? "var(--color-cuero)" : "var(--color-campo)",
-                    boxShadow: "0 6px 14px rgba(58,74,50,0.28)",
+                    boxShadow: "0 6px 16px rgba(58,74,50,0.3)",
                   }}
                 >
-                  <Icon size={20} strokeWidth={2.2} />
+                  <Icon size={22} strokeWidth={2.2} />
                 </span>
                 <span className="h-5 block" aria-hidden />
                 <span
@@ -88,6 +88,7 @@ export function MobileBottomNav({ onMore, tenantState }: MobileBottomNavProps) {
                 >
                   {label}
                 </span>
+                {active && <span className="nav-active-dot mt-0.5" aria-hidden />}
               </Link>
             );
           }
@@ -99,10 +100,11 @@ export function MobileBottomNav({ onMore, tenantState }: MobileBottomNavProps) {
               className="flex flex-col items-center justify-end pb-1.5 gap-0.5 h-14 min-w-0 touch-manipulation"
               style={{ color: active ? "var(--color-campo)" : "rgba(26,26,24,0.4)" }}
             >
-              <Icon size={18} strokeWidth={active ? 2.2 : 1.7} />
-              <span className="text-[10px] font-medium leading-none truncate max-w-full px-0.5">
+              <Icon size={20} strokeWidth={active ? 2.3 : 1.7} />
+              <span className="text-[10px] font-semibold leading-none truncate max-w-full px-0.5">
                 {label}
               </span>
+              {active && <span className="nav-active-dot" aria-hidden />}
             </Link>
           );
         })}
@@ -114,8 +116,8 @@ export function MobileBottomNav({ onMore, tenantState }: MobileBottomNavProps) {
           style={{ color: "rgba(26,26,24,0.4)" }}
           aria-label="Más"
         >
-          <Menu size={18} strokeWidth={1.7} />
-          <span className="text-[10px] font-medium leading-none">Más</span>
+          <Menu size={20} strokeWidth={1.7} />
+          <span className="text-[10px] font-semibold leading-none">Más</span>
         </button>
       </div>
     </nav>
