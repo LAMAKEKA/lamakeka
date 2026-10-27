@@ -7,6 +7,29 @@
 **Status app:** PR código (resend + redirect helpers) en git.  
 **Status cloud:** checklist humano abajo (Auth UI + SMTP).
 
+### Incidente 2026-10-27 — `Error sending confirmation email`
+
+Signo en app: register muestra `Error: Error sending confirmation email`.
+
+**Causa típica:** SMTP custom mal/no configurado, o Resend rechaza el sender.
+
+Checklist fix rápido:
+
+1. https://supabase.com/dashboard/project/szffikjajxqxawxavshw/settings/auth  
+   → **SMTP Settings** → Enable custom SMTP **ON**
+2. Valores Resend:
+   - Host `smtp.resend.com`
+   - Port `465`
+   - User `resend`
+   - Pass = API key `re_…` (no el secret de otro lado)
+   - Sender email: lab `onboarding@resend.dev` **exacto**
+   - Sender name: `La Makeka`
+3. Save → reintentar register
+4. Si Resend dice solo envíos a tu mail: registrate con el **mismo email de la cuenta Resend** hasta verificar dominio
+5. Logs: https://resend.com/emails + Auth users en Supabase (¿quedó user “unconfirmed”?)
+
+Si el user ya se creó sin mail: en Auth Users → el user → **Send magic link** / o desde app **Reenviar** cuando SMTP ande.
+
 ---
 
 ## 1) URL Configuration (obligatorio)
