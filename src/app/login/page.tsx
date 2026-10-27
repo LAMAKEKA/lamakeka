@@ -5,6 +5,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { Eye, EyeOff, Loader2, AlertCircle } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
+import { signupConfirmRedirect } from "@/lib/auth/emailRedirect";
 
 const ERROR_MAP: Record<string, string> = {
   "Invalid login credentials": "Email o contraseña incorrectos.",
@@ -17,17 +18,57 @@ function translateError(msg: string) {
   return ERROR_MAP[msg] ?? `Error: ${msg}`;
 }
 
+function isEmailNotConfirmed(msg: string) {
+  return /email not confirmed/i.test(msg);
+}
+
 export default function LoginPage() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [needsConfirm, setNeedsConfirm] = useState(false);
+  const [resendLoading, setResendLoading] = useState(false);
+  const [resendMsg, setResendMsg] = useState<string | null>(null);
+
+  async function resendConfirmation() {
+    const addr = email.trim();
+    if (!addr) {
+      setError("Ingresá tu email para reenviar la confirmación.");
+      return;
+    }
+    setResendLoading(true);
+    setResendMsg(null);
+    try {
+      const supabase = createClient();
+      const { error: resendError } = await supabase.auth.resend({
+        type: "signup",
+        email: addr,
+        options: {
+          emailRedirectTo: signupConfirmRedirect(window.location.origin),
+        },
+      });
+      if (resendError) {
+        setError(translateError(resendError.message));
+      } else {
+        setResendMsg("Te reenviamos el mail de confirmación. Revisá spam.");
+        setError(null);
+      }
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : "Error al reenviar.";
+      setError(translateError(msg));
+    } finally {
+      setResendLoading(false);
+    }
+  }
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setLoading(true);
     setError(null);
+    setNeedsConfirm(false);
+    setResendMsg(null);
 
     try {
       const supabase = createClient();
@@ -38,6 +79,7 @@ export default function LoginPage() {
 
       if (authError) {
         setError(translateError(authError.message));
+        setNeedsConfirm(isEmailNotConfirmed(authError.message));
         setLoading(false);
         return;
       }
@@ -203,6 +245,35 @@ export default function LoginPage() {
                 <AlertCircle size={15} className="shrink-0" />
                 {error}
               </div>
+            )}
+
+            {resendMsg && (
+              <p className="text-sm" style={{ color: "#15803d" }}>
+                {resendMsg}
+              </p>
+            )}
+
+            {needsConfirm && (
+              <button
+                type="button"
+                onClick={resendConfirmation}
+                disabled={resendLoading}
+                className="w-full py-3 rounded-xl text-sm font-semibold flex items-center justify-center gap-2 touch-manipulation disabled:opacity-60"
+                style={{
+                  backgroundColor: "rgba(58,74,50,0.1)",
+                  color: "var(--color-campo)",
+                  border: "1px solid rgba(58,74,50,0.25)",
+                }}
+              >
+                {resendLoading ? (
+                  <>
+                    <Loader2 size={16} className="animate-spin" />
+                    Reenviando…
+                  </>
+                ) : (
+                  "Reenviar email de confirmación"
+                )}
+              </button>
             )}
 
             {/* Submit */}
