@@ -2,7 +2,6 @@
 
 import { useState } from "react";
 import Image from "next/image";
-import { useRouter } from "next/navigation";
 import { Loader2, AlertCircle, Check } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import {
@@ -70,7 +69,6 @@ export default function SetupPage() {
   const [tipo, setTipo] = useState<EstablecimientoTipo | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const router = useRouter();
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -87,7 +85,7 @@ export default function SetupPage() {
     } = await supabase.auth.getUser();
 
     if (!user) {
-      router.push("/login");
+      window.location.assign("/login");
       return;
     }
 
@@ -99,15 +97,14 @@ export default function SetupPage() {
       email: user.email,
     });
 
-    let { error: dbError } = await supabase
+    const { error: insertError } = await supabase
       .from("establecimientos")
       .insert(fullPayload);
 
-    if (dbError) {
-      if (isUniqueViolation(dbError)) {
+    if (insertError) {
+      if (isUniqueViolation(insertError)) {
         setError("Ya tenés un establecimiento. Redirigiendo…");
-        router.push("/");
-        router.refresh();
+        window.location.assign("/");
         return;
       }
 
@@ -116,26 +113,23 @@ export default function SetupPage() {
         .insert(toLegacyEstablecimientoInsert(fullPayload));
 
       if (legacyRes.error) {
-        setError("No se pudo guardar el establecimiento. Intentá de nuevo.");
+        setError(
+          legacyRes.error.message ||
+            insertError.message ||
+            "No se pudo guardar el establecimiento. Intentá de nuevo."
+        );
         setLoading(false);
         return;
       }
 
       console.warn(
         "[setup] insert platform cols failed; saved legacy row only",
-        dbError.message
+        insertError.message
       );
-      dbError = null;
     }
 
-    if (dbError) {
-      setError("No se pudo guardar el establecimiento. Intentá de nuevo.");
-      setLoading(false);
-      return;
-    }
-
-    router.push("/");
-    router.refresh();
+    // Hard nav: proxy + useTenant leen la fila nueva con cookies frescas.
+    window.location.assign("/");
   }
 
   return (

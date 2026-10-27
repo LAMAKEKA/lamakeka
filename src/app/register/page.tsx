@@ -3,7 +3,6 @@
 import { useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
 import { Eye, EyeOff, Loader2, AlertCircle, CheckCircle2 } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 
@@ -84,7 +83,6 @@ export default function RegisterPage() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState(false);
-  const router = useRouter();
 
   function set(field: keyof typeof form) {
     return (value: string) => setForm((f) => ({ ...f, [field]: value }));
@@ -104,36 +102,54 @@ export default function RegisterPage() {
     }
 
     setLoading(true);
-    const supabase = createClient();
 
-    const { error: authError } = await supabase.auth.signUp({
-      email: form.email.trim(),
-      password: form.password,
-      options: {
-        data: {
-          nombre: form.nombre.trim(),
-          apellido: form.apellido.trim(),
-          full_name: `${form.nombre.trim()} ${form.apellido.trim()}`.trim(),
-          whatsapp: form.whatsapp.trim(),
+    try {
+      const supabase = createClient();
+      const email = form.email.trim();
+
+      const { data, error: authError } = await supabase.auth.signUp({
+        email,
+        password: form.password,
+        options: {
+          data: {
+            nombre: form.nombre.trim(),
+            apellido: form.apellido.trim(),
+            full_name: `${form.nombre.trim()} ${form.apellido.trim()}`.trim(),
+            whatsapp: form.whatsapp.trim(),
+          },
+          // Tras confirmar email → callback → /setup (sin establecimiento).
+          emailRedirectTo: `${window.location.origin}/auth/callback?next=/setup`,
         },
-        emailRedirectTo: `${window.location.origin}/auth/callback`,
-      },
-    });
+      });
 
-    if (authError) {
-      setError(translateError(authError.message));
-      setLoading(false);
-      return;
-    }
+      if (authError) {
+        setError(translateError(authError.message));
+        setLoading(false);
+        return;
+      }
 
-    // Check if email confirmation is required
-    const { data: { user } } = await supabase.auth.getUser();
-    if (user) {
-      router.push("/setup");
-      router.refresh();
-    } else {
-      // Email confirmation pending
+      // Supabase a veces “acepta” un email ya registrado sin error (identities vacío).
+      const identities = data.user?.identities;
+      if (data.user && Array.isArray(identities) && identities.length === 0) {
+        setError("Este email ya está registrado. Iniciá sesión o recuperá la contraseña.");
+        setLoading(false);
+        return;
+      }
+
+      // Sesión inmediata (confirmación de email desactivada en Auth):
+      // hard navigate para que el proxy lea cookies (mismo patrón que /login).
+      if (data.session) {
+        window.location.assign("/setup");
+        return;
+      }
+
+      // Confirmación de email obligatoria: no hay sesión hasta el link del mail.
       setSuccess(true);
+      setLoading(false);
+    } catch (err) {
+      const msg =
+        err instanceof Error ? err.message : "Error de red al crear la cuenta.";
+      setError(translateError(msg));
       setLoading(false);
     }
   }
@@ -160,18 +176,30 @@ export default function RegisterPage() {
           >
             ¡Revisá tu email!
           </h2>
-          <p className="text-sm mb-6" style={{ color: "rgba(26,26,24,0.55)" }}>
+          <p className="text-sm mb-3" style={{ color: "rgba(26,26,24,0.55)" }}>
             Te enviamos un link de confirmación a{" "}
             <strong style={{ color: "var(--color-tierra)" }}>{form.email}</strong>.
-            Hacé click en el link para activar tu cuenta.
           </p>
-          <Link
-            href="/login"
-            className="text-sm font-semibold"
-            style={{ color: "var(--color-cuero)" }}
-          >
-            ← Volver al login
-          </Link>
+          <p className="text-sm mb-6" style={{ color: "rgba(26,26,24,0.55)" }}>
+            Cuando abras el link, te llevamos a{" "}
+            <strong style={{ color: "var(--color-tierra)" }}>
+              Configurá tu establecimiento
+            </strong>{" "}
+            (nombre del campo + ganadero / agrícola / mixto). Revisá spam si no
+            llega.
+          </p>
+          <div className="flex flex-col items-center gap-3">
+            <Link
+              href="/login"
+              className="text-sm font-semibold min-h-[44px] inline-flex items-center"
+              style={{ color: "var(--color-cuero)" }}
+            >
+              Ya confirmé → Iniciar sesión
+            </Link>
+            <p className="text-xs" style={{ color: "rgba(26,26,24,0.4)" }}>
+              Sin confirmar el email no se puede completar el campo.
+            </p>
+          </div>
         </div>
       </div>
     );
