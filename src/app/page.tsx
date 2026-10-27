@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { redirect } from "next/navigation";
 import { MiniMapCard } from "@/components/map/map-card";
 import {
@@ -11,9 +12,14 @@ import {
   DollarSign,
   Activity,
   CheckSquare,
+  ScanLine,
+  Sprout,
+  Settings2,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -64,23 +70,23 @@ function MetricCardComponent({ card }: { card: MetricCard }) {
 
   return (
     <div
-      className="rounded-xl p-3 flex flex-col gap-2"
+      className="rounded-2xl p-3.5 flex flex-col gap-2.5 min-h-[6.5rem]"
       style={{
         backgroundColor: "#ffffff",
-        boxShadow: "0 1px 2px rgba(26,26,24,0.05)",
+        boxShadow: "0 1px 3px rgba(26,26,24,0.06)",
         border: "1px solid rgba(212,197,169,0.5)",
       }}
     >
       <div className="flex items-center justify-between gap-2">
         <div
-          className="w-8 h-8 rounded-lg flex items-center justify-center shrink-0"
+          className="w-9 h-9 rounded-xl flex items-center justify-center shrink-0"
           style={{ backgroundColor: iconBg }}
         >
-          <Icon size={15} style={{ color: iconColor }} strokeWidth={1.8} />
+          <Icon size={16} style={{ color: iconColor }} strokeWidth={1.8} />
         </div>
         {deltaType === "down" && (
           <span
-            className="flex items-center gap-0.5 text-[10px] font-medium px-1.5 py-0.5 rounded-full"
+            className="flex items-center gap-0.5 text-[10px] font-semibold px-1.5 py-0.5 rounded-full"
             style={{ backgroundColor: "rgba(220,38,38,0.08)", color: "#dc2626" }}
           >
             <TrendingDown size={10} strokeWidth={2.5} />
@@ -89,9 +95,9 @@ function MetricCardComponent({ card }: { card: MetricCard }) {
         )}
         {deltaType === "neutral" && (
           <span
-            className="text-[10px] font-medium px-1.5 py-0.5 rounded-full"
+            className="text-[10px] font-semibold px-1.5 py-0.5 rounded-full"
             style={{
-              backgroundColor: "rgba(212,197,169,0.3)",
+              backgroundColor: "rgba(212,197,169,0.35)",
               color: "var(--color-cuero)",
             }}
           >
@@ -101,7 +107,7 @@ function MetricCardComponent({ card }: { card: MetricCard }) {
       </div>
       <div>
         <p
-          className="text-xl md:text-2xl font-bold tracking-tight leading-none mb-0.5"
+          className="text-2xl font-bold tracking-tight leading-none mb-1"
           style={{
             color: "var(--color-tierra)",
             fontFamily: "var(--font-playfair), Georgia, serif",
@@ -109,85 +115,13 @@ function MetricCardComponent({ card }: { card: MetricCard }) {
         >
           {value}
         </p>
-        <p className="text-[11px] font-medium leading-tight" style={{ color: "rgba(26,26,24,0.55)" }}>
+        <p className="text-[11px] font-semibold leading-tight" style={{ color: "rgba(26,26,24,0.55)" }}>
           {label}
         </p>
-        <p className="text-[10px] mt-0.5 leading-tight" style={{ color: "rgba(26,26,24,0.35)" }}>
+        <p className="text-[10px] mt-0.5 leading-tight" style={{ color: "rgba(26,26,24,0.38)" }}>
           {sub}
         </p>
       </div>
-    </div>
-  );
-}
-
-function ActivityFeed({ activities }: { activities: ActivityItem[] }) {
-  return (
-    <div
-      className="rounded-xl flex flex-col"
-      style={{
-        backgroundColor: "#ffffff",
-        boxShadow: "0 1px 2px rgba(26,26,24,0.05)",
-        border: "1px solid rgba(212,197,169,0.5)",
-      }}
-    >
-      <div className="px-4 py-2.5 border-b" style={{ borderColor: "rgba(212,197,169,0.4)" }}>
-        <h2
-          className="font-semibold text-sm"
-          style={{
-            color: "var(--color-tierra)",
-            fontFamily: "var(--font-playfair), Georgia, serif",
-          }}
-        >
-          Actividad
-        </h2>
-      </div>
-
-      {activities.length === 0 ? (
-        <div className="flex flex-col items-center justify-center py-10 gap-1">
-          <Activity size={22} style={{ color: "rgba(26,26,24,0.15)" }} strokeWidth={1.4} />
-          <p className="text-xs" style={{ color: "rgba(26,26,24,0.35)" }}>
-            Sin movimientos recientes
-          </p>
-        </div>
-      ) : (
-        <div className="divide-y" style={{ borderColor: "rgba(212,197,169,0.3)" }}>
-          {activities.map((item) => {
-            const Icon = item.icon;
-            return (
-              <div key={item.id} className="flex items-start gap-3 px-4 py-2.5">
-                <div
-                  className="w-7 h-7 rounded-lg flex items-center justify-center shrink-0 mt-0.5"
-                  style={{ backgroundColor: item.iconBg }}
-                >
-                  <Icon size={14} style={{ color: item.iconColor }} strokeWidth={1.8} />
-                </div>
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-start justify-between gap-2">
-                    <p
-                      className="text-xs font-medium leading-snug"
-                      style={{ color: "var(--color-tierra)" }}
-                    >
-                      {item.title}
-                    </p>
-                    <span
-                      className="text-[10px] shrink-0 mt-0.5"
-                      style={{ color: "rgba(26,26,24,0.35)" }}
-                    >
-                      {item.time}
-                    </span>
-                  </div>
-                  <p
-                    className="text-[11px] mt-0.5 truncate"
-                    style={{ color: "rgba(26,26,24,0.45)" }}
-                  >
-                    {item.description}
-                  </p>
-                </div>
-              </div>
-            );
-          })}
-        </div>
-      )}
     </div>
   );
 }
@@ -665,15 +599,96 @@ export default async function DashboardPage() {
         </div>
       </div>
 
-      {/* Mobile: nombre del campo compacto */}
-      <div className="md:hidden px-3 pt-3 pb-1">
-        <p className="text-xs font-medium truncate" style={{ color: "rgba(26,26,24,0.5)" }}>
-          {displayName} · {dateFormatted}
-        </p>
+      {/* Mobile: saludo compacto */}
+      <div className="md:hidden px-3 pt-3 pb-1 flex items-center justify-between gap-2">
+        <div className="min-w-0">
+          <p
+            className="text-[11px] font-semibold uppercase tracking-wide"
+            style={{ color: "rgba(26,26,24,0.4)" }}
+          >
+            Hoy · {dateFormatted}
+          </p>
+          <p
+            className="text-base font-semibold truncate leading-tight"
+            style={{
+              color: "var(--color-tierra)",
+              fontFamily: "var(--font-playfair), Georgia, serif",
+            }}
+          >
+            {displayName}
+          </p>
+        </div>
+        <Badge variant="secondary" className="shrink-0 capitalize">
+          {tipo}
+        </Badge>
       </div>
 
       <div className="flex-1 p-3 md:p-6 flex flex-col gap-3 md:gap-5">
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-2 md:gap-3">
+        {/* Atajos rápidos mobile */}
+        <div className="quick-actions md:hidden -mx-0.5 px-0.5" aria-label="Atajos">
+          {has("manga") && (
+            <Link href="/manga" className="quick-action">
+              <span className="quick-action__icon">
+                <ScanLine size={14} strokeWidth={2.2} />
+              </span>
+              Manga
+            </Link>
+          )}
+          {has("hacienda") && (
+            <Link href="/hacienda" className="quick-action">
+              <span className="quick-action__icon">
+                <Beef size={14} strokeWidth={2.2} />
+              </span>
+              Hacienda
+            </Link>
+          )}
+          {has("potreros") && (
+            <Link href="/potreros" className="quick-action">
+              <span className="quick-action__icon">
+                <MapPin size={14} strokeWidth={2.2} />
+              </span>
+              Potreros
+            </Link>
+          )}
+          {has("agricola") && (
+            <Link href="/agricola" className="quick-action">
+              <span
+                className="quick-action__icon"
+                style={{ backgroundColor: "rgba(22,163,74,0.12)", color: "#16a34a" }}
+              >
+                <Sprout size={14} strokeWidth={2.2} />
+              </span>
+              Agrícola
+            </Link>
+          )}
+          {has("insumos") && (
+            <Link href="/insumos" className="quick-action">
+              <span className="quick-action__icon">
+                <Package size={14} strokeWidth={2.2} />
+              </span>
+              Insumos
+            </Link>
+          )}
+          {has("finanzas") && (
+            <Link href="/finanzas" className="quick-action">
+              <span
+                className="quick-action__icon"
+                style={{ backgroundColor: "rgba(139,78,42,0.12)", color: "var(--color-cuero)" }}
+              >
+                <DollarSign size={14} strokeWidth={2.2} />
+              </span>
+              Finanzas
+            </Link>
+          )}
+          <Link href="/config" className="quick-action">
+            <span className="quick-action__icon">
+              <Settings2 size={14} strokeWidth={2.2} />
+            </span>
+            Mi campo
+          </Link>
+        </div>
+
+        <div className="kpi-grid">
           {metrics.map((card) => (
             <MetricCardComponent key={card.label} card={card} />
           ))}
@@ -681,37 +696,88 @@ export default async function DashboardPage() {
 
         <div className="grid grid-cols-1 lg:grid-cols-5 gap-3 flex-1">
           <div className={showPotreros ? "lg:col-span-3" : "lg:col-span-5"}>
-            <ActivityFeed activities={activities} />
+            <Card className="overflow-hidden">
+              <CardHeader className="border-b" style={{ borderColor: "rgba(212,197,169,0.4)" }}>
+                <div className="flex items-center justify-between gap-2">
+                  <CardTitle>Actividad</CardTitle>
+                  {activities.length > 0 && (
+                    <Badge variant="muted">{activities.length} recientes</Badge>
+                  )}
+                </div>
+              </CardHeader>
+              <CardContent className="px-0 pb-0">
+                {activities.length === 0 ? (
+                  <div className="flex flex-col items-center justify-center py-10 gap-1 px-4">
+                    <Activity size={22} style={{ color: "rgba(26,26,24,0.15)" }} strokeWidth={1.4} />
+                    <p className="text-xs" style={{ color: "rgba(26,26,24,0.35)" }}>
+                      Sin movimientos recientes
+                    </p>
+                  </div>
+                ) : (
+                  <div className="divide-y" style={{ borderColor: "rgba(212,197,169,0.3)" }}>
+                    {activities.map((item) => {
+                      const Icon = item.icon;
+                      return (
+                        <div key={item.id} className="flex items-start gap-3 px-4 py-3">
+                          <div
+                            className="w-8 h-8 rounded-xl flex items-center justify-center shrink-0 mt-0.5"
+                            style={{ backgroundColor: item.iconBg }}
+                          >
+                            <Icon size={14} style={{ color: item.iconColor }} strokeWidth={1.8} />
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-start justify-between gap-2">
+                              <p
+                                className="text-xs font-semibold leading-snug"
+                                style={{ color: "var(--color-tierra)" }}
+                              >
+                                {item.title}
+                              </p>
+                              <span
+                                className="text-[10px] shrink-0 mt-0.5"
+                                style={{ color: "rgba(26,26,24,0.35)" }}
+                              >
+                                {item.time}
+                              </span>
+                            </div>
+                            <p
+                              className="text-[11px] mt-0.5 truncate"
+                              style={{ color: "rgba(26,26,24,0.5)" }}
+                            >
+                              {item.description}
+                            </p>
+                            <span
+                              className="inline-block mt-1.5 text-[10px] font-semibold px-2 py-0.5 rounded-full"
+                              style={{
+                                backgroundColor: item.categoryBg,
+                                color: item.categoryColor,
+                              }}
+                            >
+                              {item.category}
+                            </span>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+              </CardContent>
+            </Card>
           </div>
           {showPotreros && (
-          <div className="lg:col-span-2 flex flex-col min-h-[200px] md:min-h-[280px]">
-            <div
-              className="rounded-xl flex flex-col h-full overflow-hidden"
-              style={{
-                backgroundColor: "#ffffff",
-                boxShadow: "0 1px 2px rgba(26,26,24,0.05)",
-                border: "1px solid rgba(212,197,169,0.5)",
-              }}
-            >
-              <div
-                className="px-4 py-2.5 border-b shrink-0"
-                style={{ borderColor: "rgba(212,197,169,0.4)" }}
-              >
-                <h2
-                  className="font-semibold text-sm"
-                  style={{
-                    color: "var(--color-tierra)",
-                    fontFamily: "var(--font-playfair), Georgia, serif",
-                  }}
+            <div className="lg:col-span-2 flex flex-col min-h-[200px] md:min-h-[280px]">
+              <Card className="flex flex-col h-full overflow-hidden">
+                <CardHeader
+                  className="border-b shrink-0"
+                  style={{ borderColor: "rgba(212,197,169,0.4)" }}
                 >
-                  Mapa
-                </h2>
-              </div>
-              <div className="flex-1 relative overflow-hidden rounded-b-xl min-h-[180px]">
-                <MiniMapCard potreros={potrerosForMap} />
-              </div>
+                  <CardTitle>Mapa</CardTitle>
+                </CardHeader>
+                <div className="flex-1 relative overflow-hidden rounded-b-2xl min-h-[180px]">
+                  <MiniMapCard potreros={potrerosForMap} />
+                </div>
+              </Card>
             </div>
-          </div>
           )}
         </div>
       </div>

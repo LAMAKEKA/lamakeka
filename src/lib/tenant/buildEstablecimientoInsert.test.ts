@@ -28,11 +28,32 @@ describe("buildEstablecimientoInsert", () => {
     expect(p.user_id).toBe("user-1");
     expect(p.nombre_display).toBe("Campo San José");
     expect(p.logo_url).toBe("/logo-makeka.png");
+    expect(p.brand_theme).toBeNull();
     expect(p.tagline).toBe("AI · Ganadera");
     expect(p.modules_enabled).toEqual([...GANADERO_GENERIC_MODULES]);
     expect(p.modules_enabled).not.toContain("produccion_huevos");
     expect(p.rubros).toEqual(defaultRubrosForTipo("ganadero"));
     expect(p.is_platform_demo).toBe(false);
+  });
+
+  it("acepta logo vacío sin default Makeka", () => {
+    const p = buildEstablecimientoInsert({
+      ...base,
+      tipo: "ganadero",
+      logoUrl: "",
+    });
+    expect(p.logo_url).toBe("");
+  });
+
+  it("acepta logoUrl y brandTheme custom", () => {
+    const p = buildEstablecimientoInsert({
+      ...base,
+      tipo: "ganadero",
+      logoUrl: "https://cdn.example/logo.png",
+      brandTheme: { campo: "#1e3a5f", cuero: "#c45c26" },
+    });
+    expect(p.logo_url).toBe("https://cdn.example/logo.png");
+    expect(p.brand_theme).toEqual({ campo: "#1E3A5F", cuero: "#C45C26" });
   });
 
   it("agricola → sin manga + tagline Agrícola", () => {

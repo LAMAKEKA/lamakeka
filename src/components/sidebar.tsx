@@ -1,7 +1,6 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { LogOut, Settings2, X } from "lucide-react";
@@ -10,6 +9,7 @@ import { filterModules, getModule } from "@/lib/modules/registry";
 import { iconFor } from "@/lib/modules/iconMap";
 import { defaultModulesForTipo } from "@/lib/modules/defaults";
 import type { TenantState } from "@/hooks/useTenant";
+import { BrandMark } from "@/components/brand-mark";
 
 interface SidebarProps {
   onClose?: () => void;
@@ -74,7 +74,7 @@ export function Sidebar({ onClose, tenantState }: SidebarProps) {
 
   const title = tenant?.nombreDisplay || tenant?.nombre || "Campo";
   const tagline = tenant?.tagline || "AI · Campo";
-  const logo = tenant?.logoUrl || "/logo-makeka.png";
+  const logo = tenant?.logoUrl || "";
 
   return (
     <aside
@@ -86,13 +86,7 @@ export function Sidebar({ onClose, tenantState }: SidebarProps) {
         style={{ paddingTop: "max(1rem, env(safe-area-inset-top, 0px))" }}
       >
         <div className="flex items-center gap-2.5">
-          <Image
-            src={logo}
-            alt={title}
-            width={40}
-            height={40}
-            className="rounded-xl shrink-0"
-          />
+          <BrandMark logoUrl={logo} name={title} size={40} />
           <div className="flex-1 min-w-0">
             <span
               className="text-white text-lg font-bold leading-tight block truncate"

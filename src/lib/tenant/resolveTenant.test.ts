@@ -60,7 +60,7 @@ describe("mapEstablecimientoRow", () => {
       modules_enabled: ["inicio", "agricola"],
       rubros: ["agricola"],
       is_platform_demo: true,
-      brand_theme: { primary: "#123", nested: { x: 1 } as unknown as string },
+      brand_theme: { campo: "#1E3A5F", cuero: "#C45C26", nested: { x: 1 } as unknown as string },
     });
     expect(t.nombreDisplay).toBe("San José Display");
     expect(t.logoUrl).toBe("/custom.png");
@@ -68,7 +68,12 @@ describe("mapEstablecimientoRow", () => {
     expect(t.modulesEnabled).toEqual(["inicio", "agricola"]);
     expect(t.rubros).toEqual(["agricola"]);
     expect(t.isPlatformDemo).toBe(true);
-    expect(t.brandTheme).toEqual({ primary: "#123" });
+    expect(t.brandTheme).toEqual({ campo: "#1E3A5F", cuero: "#C45C26" });
+  });
+
+  it("generic without logo → empty logoUrl (shell usa iniciales)", () => {
+    const t = mapEstablecimientoRow(genericBase);
+    expect(t.logoUrl).toBe("");
   });
 
   it("agricola empty modules → defaultModulesForTipo agricola", () => {

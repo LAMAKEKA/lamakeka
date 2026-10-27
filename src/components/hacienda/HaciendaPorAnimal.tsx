@@ -1,11 +1,14 @@
 "use client";
 
 import { useEffect, useMemo, useState, useCallback } from "react";
-import { Search, Loader2, Beef, AlertCircle } from "lucide-react";
+import Link from "next/link";
+import { Search, Loader2, Beef, AlertCircle, ChevronRight, ScanLine } from "lucide-react";
 import { useHaciendaAnimales, type HaciendaAnimalRow } from "@/hooks/useHaciendaAnimales";
 import { usePotreros } from "@/hooks/usePotreros";
 import { useSupabaseManga, type MangaAnimal, type UpdateAnimalPayload } from "@/hooks/useSupabaseManga";
 import { AnimalFichaDrawer } from "@/components/hacienda/AnimalFichaDrawer";
+import { ListCard } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
 import {
   countByCategoria,
   countEnStock,
@@ -13,13 +16,16 @@ import {
 } from "@/lib/haciendaStock";
 import { CATEGORIAS_BOVINOS } from "@/lib/senasa";
 
-const ESTADO_CHIP: Record<string, { bg: string; color: string; label: string }> = {
-  activo: { bg: "rgba(22,163,74,0.09)", color: "#16a34a", label: "Activo" },
-  sin_ubicar: { bg: "rgba(217,119,6,0.10)", color: "#d97706", label: "Sin ubicar" },
-  vendido: { bg: "rgba(37,99,235,0.09)", color: "#2563eb", label: "Vendido" },
-  muerto: { bg: "rgba(220,38,38,0.07)", color: "#dc2626", label: "Muerto" },
-  transferido: { bg: "rgba(107,114,128,0.12)", color: "#6b7280", label: "Transferido" },
-  baja: { bg: "rgba(107,114,128,0.12)", color: "#6b7280", label: "Baja" },
+const ESTADO_CHIP: Record<
+  string,
+  { variant: "success" | "warning" | "info" | "danger" | "muted"; label: string }
+> = {
+  activo: { variant: "success", label: "Activo" },
+  sin_ubicar: { variant: "warning", label: "Sin ubicar" },
+  vendido: { variant: "info", label: "Vendido" },
+  muerto: { variant: "danger", label: "Muerto" },
+  transferido: { variant: "muted", label: "Transferido" },
+  baja: { variant: "muted", label: "Baja" },
 };
 
 interface Props {
@@ -188,90 +194,134 @@ export function HaciendaPorAnimal({ establecimientoId, userName }: Props) {
           <Loader2 size={28} className="animate-spin" style={{ color: "var(--color-campo)" }} />
         </div>
       ) : animales.length === 0 ? (
-        <div
-          className="rounded-2xl p-10 text-center"
-          style={{
-            backgroundColor: "#ffffff",
-            border: "1px solid rgba(212,197,169,0.5)",
-          }}
-        >
-          <p className="text-sm font-medium" style={{ color: "var(--color-tierra)" }}>
+        <div className="empty-state">
+          <div
+            className="mx-auto mb-3 w-12 h-12 rounded-2xl flex items-center justify-center"
+            style={{ backgroundColor: "rgba(58,74,50,0.08)", color: "var(--color-campo)" }}
+          >
+            <Beef size={22} strokeWidth={1.8} />
+          </div>
+          <p className="text-sm font-semibold" style={{ color: "var(--color-tierra)" }}>
             No hay animales con caravana en stock
           </p>
-          <p className="text-xs mt-2" style={{ color: "rgba(26,26,24,0.45)" }}>
+          <p className="text-xs mt-2 mb-4" style={{ color: "rgba(26,26,24,0.5)" }}>
             Cargalos desde Manga con el bastón o alta manual.
           </p>
+          <Link
+            href="/manga"
+            className="inline-flex items-center justify-center gap-2 min-h-12 px-5 rounded-xl text-sm font-semibold text-white touch-manipulation"
+            style={{ backgroundColor: "var(--color-campo)" }}
+          >
+            <ScanLine size={16} />
+            Ir a Manga
+          </Link>
         </div>
       ) : (
-        <div
-          className="rounded-2xl overflow-hidden"
-          style={{
-            backgroundColor: "#ffffff",
-            border: "1px solid rgba(212,197,169,0.5)",
-            boxShadow: "0 1px 3px rgba(26,26,24,0.06)",
-          }}
-        >
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm">
-              <thead>
-                <tr style={{ backgroundColor: "rgba(240,237,230,0.7)" }}>
-                  {["EID", "VID", "Categoría", "Potrero", "Estado", "Sexo"].map((h) => (
-                    <th
-                      key={h}
-                      className="text-left px-4 py-3 text-xs font-semibold tracking-wide uppercase"
-                      style={{ color: "rgba(26,26,24,0.45)" }}
-                    >
-                      {h}
-                    </th>
-                  ))}
-                </tr>
-              </thead>
-              <tbody>
-                {animales.map((a) => {
-                  const st = ESTADO_CHIP[a.estado ?? "activo"] ?? ESTADO_CHIP.activo;
-                  return (
-                    <tr
-                      key={a.id}
-                      onClick={() => setSelected(a)}
-                      className="cursor-pointer border-t transition-colors"
-                      style={{ borderColor: "rgba(212,197,169,0.35)" }}
-                      onMouseEnter={(e) => {
-                        e.currentTarget.style.backgroundColor = "rgba(58,74,50,0.04)";
-                      }}
-                      onMouseLeave={(e) => {
-                        e.currentTarget.style.backgroundColor = "transparent";
-                      }}
-                    >
-                      <td className="px-4 py-3 font-mono text-xs" style={{ color: "var(--color-tierra)" }}>
-                        {a.eid}
-                      </td>
-                      <td className="px-4 py-3" style={{ color: "rgba(26,26,24,0.65)" }}>
-                        {a.vid ?? "—"}
-                      </td>
-                      <td className="px-4 py-3" style={{ color: "var(--color-tierra)" }}>
-                        {a.categoria ?? "—"}
-                      </td>
-                      <td className="px-4 py-3" style={{ color: "rgba(26,26,24,0.65)" }}>
-                        {a.potrero_nombre ?? "Sin ubicar"}
-                      </td>
-                      <td className="px-4 py-3">
+        <>
+          {/* Mobile: cards táctiles */}
+          <div className="list-stack md:hidden">
+            {animales.map((a) => {
+              const st = ESTADO_CHIP[a.estado ?? "activo"] ?? ESTADO_CHIP.activo;
+              return (
+                <ListCard
+                  key={a.id}
+                  onClick={() => setSelected(a)}
+                  aria-label={`Abrir ficha ${a.eid}`}
+                >
+                  <div className="flex items-start gap-3">
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2 flex-wrap mb-1">
                         <span
-                          className="text-[11px] font-medium px-2.5 py-1 rounded-full"
-                          style={{ backgroundColor: st.bg, color: st.color }}
+                          className="font-mono text-sm font-semibold tracking-tight"
+                          style={{ color: "var(--color-tierra)" }}
                         >
-                          {st.label}
+                          {a.eid}
                         </span>
-                      </td>
-                      <td className="px-4 py-3" style={{ color: "rgba(26,26,24,0.65)" }}>
-                        {a.sexo ?? "—"}
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
+                        <Badge variant={st.variant}>{st.label}</Badge>
+                      </div>
+                      <p className="text-sm font-medium" style={{ color: "var(--color-tierra)" }}>
+                        {a.categoria ?? "Sin categoría"}
+                        {a.sexo ? ` · ${a.sexo}` : ""}
+                      </p>
+                      <p className="text-xs mt-0.5" style={{ color: "rgba(26,26,24,0.5)" }}>
+                        {a.potrero_nombre ?? "Sin ubicar"}
+                        {a.vid ? ` · VID ${a.vid}` : ""}
+                      </p>
+                    </div>
+                    <ChevronRight
+                      size={18}
+                      className="shrink-0 mt-1"
+                      style={{ color: "rgba(26,26,24,0.3)" }}
+                    />
+                  </div>
+                </ListCard>
+              );
+            })}
           </div>
-        </div>
+
+          {/* Desktop: tabla */}
+          <div
+            className="hidden md:block rounded-2xl overflow-hidden"
+            style={{
+              backgroundColor: "#ffffff",
+              border: "1px solid rgba(212,197,169,0.5)",
+              boxShadow: "0 1px 3px rgba(26,26,24,0.06)",
+            }}
+          >
+            <div className="table-wrap">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr style={{ backgroundColor: "rgba(240,237,230,0.7)" }}>
+                    {["EID", "VID", "Categoría", "Potrero", "Estado", "Sexo"].map((h) => (
+                      <th
+                        key={h}
+                        className="text-left px-4 py-3 text-xs font-semibold tracking-wide uppercase"
+                        style={{ color: "rgba(26,26,24,0.45)" }}
+                      >
+                        {h}
+                      </th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  {animales.map((a) => {
+                    const st = ESTADO_CHIP[a.estado ?? "activo"] ?? ESTADO_CHIP.activo;
+                    return (
+                      <tr
+                        key={a.id}
+                        onClick={() => setSelected(a)}
+                        className="cursor-pointer border-t transition-colors hover:bg-[rgba(58,74,50,0.04)]"
+                        style={{ borderColor: "rgba(212,197,169,0.35)" }}
+                      >
+                        <td
+                          className="px-4 py-3 font-mono text-xs"
+                          style={{ color: "var(--color-tierra)" }}
+                        >
+                          {a.eid}
+                        </td>
+                        <td className="px-4 py-3" style={{ color: "rgba(26,26,24,0.65)" }}>
+                          {a.vid ?? "—"}
+                        </td>
+                        <td className="px-4 py-3" style={{ color: "var(--color-tierra)" }}>
+                          {a.categoria ?? "—"}
+                        </td>
+                        <td className="px-4 py-3" style={{ color: "rgba(26,26,24,0.65)" }}>
+                          {a.potrero_nombre ?? "Sin ubicar"}
+                        </td>
+                        <td className="px-4 py-3">
+                          <Badge variant={st.variant}>{st.label}</Badge>
+                        </td>
+                        <td className="px-4 py-3" style={{ color: "rgba(26,26,24,0.65)" }}>
+                          {a.sexo ?? "—"}
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </>
       )}
 
       {selected && (

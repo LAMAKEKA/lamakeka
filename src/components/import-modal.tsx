@@ -65,7 +65,7 @@ export function ImportModal({
         }));
         setRows(parsed);
       } catch {
-        setFileError("No se pudo leer el archivo. Usá formato .xlsx o .xls.");
+        setFileError("No se pudo leer el archivo. Usá formato .xlsx, .xls o .csv.");
       }
     };
     reader.readAsArrayBuffer(file);
@@ -369,12 +369,12 @@ export function ImportModal({
                   Arrastrá tu archivo Excel aquí
                 </p>
                 <p className="text-xs" style={{ color: "rgba(26,26,24,0.4)" }}>
-                  o hacé click para seleccionar &nbsp;·&nbsp; .xlsx / .xls
+                  o hacé click para seleccionar &nbsp;·&nbsp; .xlsx / .xls / .csv
                 </p>
                 <input
                   ref={inputRef}
                   type="file"
-                  accept=".xlsx,.xls"
+                  accept=".xlsx,.xls,.csv,text/csv"
                   className="hidden"
                   onChange={(e) => {
                     const f = e.target.files?.[0];

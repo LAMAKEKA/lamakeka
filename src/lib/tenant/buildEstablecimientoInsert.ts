@@ -5,6 +5,7 @@ import {
   defaultTaglineForTipo,
   PLATFORM_DEMO_MODULES,
 } from "@/lib/modules/defaults";
+import { brandThemeToJson, type BrandTheme } from "@/lib/tenant/brandTheme";
 import { isPlatformDemoEmail } from "@/lib/tenant/platformDemo";
 import type { EstablecimientoTipo } from "@/lib/tenant/types";
 
@@ -19,6 +20,7 @@ export type EstablecimientoInsertFull = {
   rubros: string[];
   modules_enabled: string[];
   is_platform_demo: boolean;
+  brand_theme: Record<string, string> | null;
 };
 
 export type EstablecimientoInsertLegacy = {
@@ -34,11 +36,19 @@ export function buildEstablecimientoInsert(input: {
   tipo: EstablecimientoTipo;
   userId: string;
   email: string | null | undefined;
+  /** URL pública del logo (Storage) o path local. Vacío → default Makeka. */
+  logoUrl?: string | null;
+  brandTheme?: BrandTheme | null;
 }): EstablecimientoInsertFull {
   const nombre = input.nombre.trim();
   const ubicacion = input.ubicacion.trim();
   const tipo = input.tipo;
   const demo = isPlatformDemoEmail(input.email);
+  // undefined → default producto. null/"" → sin logo (iniciales en shell).
+  const logo =
+    input.logoUrl === undefined
+      ? defaultLogoUrl()
+      : (input.logoUrl ?? "").trim() || (demo ? defaultLogoUrl() : "");
 
   return {
     nombre,
@@ -47,7 +57,7 @@ export function buildEstablecimientoInsert(input: {
     user_id: input.userId,
     // Branding del campo: el nombre que eligió el user, NO "La Makeka"
     nombre_display: nombre,
-    logo_url: defaultLogoUrl(),
+    logo_url: logo,
     tagline: demo ? "Plataforma multi-rubro" : defaultTaglineForTipo(tipo),
     rubros: defaultRubrosForTipo(tipo),
     // Demo lab: subset fijo. Resto: solo módulos del tipo elegido.
@@ -55,6 +65,7 @@ export function buildEstablecimientoInsert(input: {
       ? [...PLATFORM_DEMO_MODULES]
       : [...defaultModulesForTipo(tipo)],
     is_platform_demo: demo,
+    brand_theme: brandThemeToJson(input.brandTheme ?? null),
   };
 }
 

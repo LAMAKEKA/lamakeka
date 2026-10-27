@@ -1,3 +1,5 @@
+import type { BrandTheme } from "./brandTheme";
+
 export type EstablecimientoTipo = "ganadero" | "agricola" | "mixto";
 
 export interface TenantConfig {
@@ -10,7 +12,7 @@ export interface TenantConfig {
   rubros: string[];
   modulesEnabled: string[];
   isPlatformDemo: boolean;
-  brandTheme: Record<string, string> | null;
+  brandTheme: BrandTheme | null;
 }
 
 export { PLATFORM_DEMO_EMAIL, isPlatformDemoEmail } from "./platformDemo";
