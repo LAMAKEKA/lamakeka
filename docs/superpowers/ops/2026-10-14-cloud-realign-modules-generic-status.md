@@ -44,3 +44,22 @@ Expect:
 - Makeka/Mateca → has_huevos true, has_manga true
 - ganadero genérico → has_huevos false, has_manga true
 - agricola → has_manga false, has_agricola true
+
+## Smoke 2 users (post-APPLY + app con modules fix)
+
+### User A — Makeka real
+1. Login cuenta dueña del estab Makeka/Mateca.
+2. Sidebar título ≈ Makeka; hay Producción (huevos), Manga, Hacienda.
+3. Home muestra métricas de hacienda (no solo agrícola).
+4. Menú → **Mi campo** (`/config`): módulos legacy on; podés apagar/prender extras.
+
+### User B — campo propio genérico
+1. Register con **otro** email (Gmail alias OK).
+2. `/setup`: nombre **sin** “makeka/mateca” (ej. “Los Álamos”), tipo **Ganadero**.
+3. Tras setup: sidebar = nombre del campo; **sin** Producción huevos; **con** Manga/Hacienda.
+4. `/config` → activar **Producción** + Guardar → aparece en menú; `/produccion` entra.
+5. Opcional: tipo Agrícola en otra cuenta → sin Manga, con Agrícola; home no “Total Cabezas”.
+
+### Lab demo
+- `testprueba@gmail.com` solo si ya existe en Auth (no auto-create; sin password en git).
+- Flag `is_platform_demo` / pack demo; realign **no** pisa su array.
