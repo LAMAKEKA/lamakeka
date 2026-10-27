@@ -163,7 +163,8 @@ export default function SetupPage() {
             Configurá tu establecimiento
           </h1>
           <p className="text-sm mt-2" style={{ color: "rgba(26,26,24,0.45)" }}>
-            Esta información aparecerá en tu panel de gestión
+            El nombre del campo es el de tu establecimiento. La navegación
+            se arma según el tipo: ganadero, agrícola o mixto.
           </p>
         </div>
 

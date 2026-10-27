@@ -7,7 +7,7 @@ import Image from "next/image";
 import { Sidebar } from "./sidebar";
 import { MobileBottomNav } from "./mobile-bottom-nav";
 import { createClient } from "@/lib/supabase/client";
-import { useTenant } from "@/hooks/useTenant";
+import { TenantProvider, useTenant } from "@/hooks/useTenant";
 import { MODULE_REGISTRY } from "@/lib/modules/registry";
 
 const NO_SHELL = ["/login", "/register", "/setup"];
@@ -25,6 +25,7 @@ const PAGE_TITLE: Record<string, string> = {
   "/senasa": "SENASA",
   "/whatsapp": "WhatsApp",
   "/agricola": "Agrícola",
+  "/config": "Mi campo",
 };
 
 function titleFor(path: string, fallbackName: string) {
@@ -41,6 +42,14 @@ function titleFor(path: string, fallbackName: string) {
 }
 
 export function AppShell({ children }: { children: React.ReactNode }) {
+  return (
+    <TenantProvider>
+      <AppShellInner>{children}</AppShellInner>
+    </TenantProvider>
+  );
+}
+
+function AppShellInner({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const tenantState = useTenant();
   const [sidebarOpen, setSidebarOpen] = useState(false);
@@ -73,7 +82,10 @@ export function AppShell({ children }: { children: React.ReactNode }) {
 
   if (!showShell) return <>{children}</>;
 
-  const brandName = tenantState.tenant?.nombreDisplay || "La Makeka";
+  const brandName =
+    tenantState.tenant?.nombreDisplay ||
+    tenantState.tenant?.nombre ||
+    "Campo";
   const logo = tenantState.tenant?.logoUrl || "/logo-makeka.png";
   const pageTitle = titleFor(pathname, brandName);
 

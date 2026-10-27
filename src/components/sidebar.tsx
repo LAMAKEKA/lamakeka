@@ -4,11 +4,11 @@ import { useState, useEffect } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { LogOut, X } from "lucide-react";
+import { LogOut, Settings2, X } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { filterModules, getModule } from "@/lib/modules/registry";
 import { iconFor } from "@/lib/modules/iconMap";
-import { MAKEKA_LEGACY_MODULES } from "@/lib/modules/defaults";
+import { defaultModulesForTipo } from "@/lib/modules/defaults";
 import type { TenantState } from "@/hooks/useTenant";
 
 interface SidebarProps {
@@ -64,14 +64,16 @@ export function Sidebar({ onClose, tenantState }: SidebarProps) {
   const enabled =
     tenant?.modulesEnabled?.length
       ? tenant.modulesEnabled
-      : [...MAKEKA_LEGACY_MODULES];
+      : [...defaultModulesForTipo(tenant?.tipo ?? "ganadero")];
 
   const mainNav = filterModules(enabled);
+  // WhatsApp secondary solo si está en modules_enabled (Makeka legacy lo tiene off por default)
   const whatsapp = getModule("whatsapp");
-  const secondaryNav = whatsapp ? [whatsapp] : [];
+  const secondaryNav =
+    whatsapp && enabled.includes("whatsapp") ? [whatsapp] : [];
 
-  const title = tenant?.nombreDisplay || "La Makeka";
-  const tagline = tenant?.tagline || "AI · Ganadera";
+  const title = tenant?.nombreDisplay || tenant?.nombre || "Campo";
+  const tagline = tenant?.tagline || "AI · Campo";
   const logo = tenant?.logoUrl || "/logo-makeka.png";
 
   return (
@@ -162,6 +164,30 @@ export function Sidebar({ onClose, tenantState }: SidebarProps) {
         })}
 
         <div className="mx-2 border-t border-white/10 my-2" />
+
+        <Link
+          href="/config"
+          onClick={() => onClose?.()}
+          className="flex items-center gap-3 px-3 py-3 rounded-xl text-sm font-medium transition-all duration-150 min-h-[48px] touch-manipulation"
+          style={{
+            backgroundColor:
+              pathname.startsWith("/config")
+                ? "rgba(255,255,255,0.18)"
+                : "transparent",
+            color: pathname.startsWith("/config")
+              ? "#ffffff"
+              : "rgba(255,255,255,0.55)",
+            boxShadow: pathname.startsWith("/config")
+              ? "inset 3px 0 0 rgba(255,255,255,0.55)"
+              : "none",
+          }}
+        >
+          <Settings2
+            size={17}
+            strokeWidth={pathname.startsWith("/config") ? 2.2 : 1.6}
+          />
+          <span className="flex-1">Mi campo</span>
+        </Link>
 
         {secondaryNav.map((m) => {
           const Icon = iconFor(m.icon);

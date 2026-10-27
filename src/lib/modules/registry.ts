@@ -108,8 +108,10 @@ export const MODULE_REGISTRY: readonly AppModule[] = [
     href: "/agricola",
     icon: "sprout",
     rubros: ["agricola"],
-    navSlot: "more",
+    navSlot: "primary",
     core: false,
+    /** Bottom strip: after potreros when both; sole agri still appears */
+    bottomNavOrder: 5,
   },
   {
     id: "insumos",

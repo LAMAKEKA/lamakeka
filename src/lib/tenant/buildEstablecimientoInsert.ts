@@ -1,6 +1,9 @@
 import {
+  defaultLogoUrl,
   defaultModulesForTipo,
   defaultRubrosForTipo,
+  defaultTaglineForTipo,
+  PLATFORM_DEMO_MODULES,
 } from "@/lib/modules/defaults";
 import { isPlatformDemoEmail } from "@/lib/tenant/platformDemo";
 import type { EstablecimientoTipo } from "@/lib/tenant/types";
@@ -25,12 +28,6 @@ export type EstablecimientoInsertLegacy = {
   user_id: string;
 };
 
-function taglineForTipo(tipo: EstablecimientoTipo): string {
-  if (tipo === "agricola") return "AI · Campo";
-  if (tipo === "mixto") return "AI · Mixto";
-  return "AI · Ganadera";
-}
-
 export function buildEstablecimientoInsert(input: {
   nombre: string;
   ubicacion: string;
@@ -41,18 +38,23 @@ export function buildEstablecimientoInsert(input: {
   const nombre = input.nombre.trim();
   const ubicacion = input.ubicacion.trim();
   const tipo = input.tipo;
+  const demo = isPlatformDemoEmail(input.email);
 
   return {
     nombre,
     ubicacion,
     tipo,
     user_id: input.userId,
+    // Branding del campo: el nombre que eligió el user, NO "La Makeka"
     nombre_display: nombre,
-    logo_url: "/logo-makeka.png",
-    tagline: taglineForTipo(tipo),
+    logo_url: defaultLogoUrl(),
+    tagline: demo ? "Plataforma multi-rubro" : defaultTaglineForTipo(tipo),
     rubros: defaultRubrosForTipo(tipo),
-    modules_enabled: defaultModulesForTipo(tipo),
-    is_platform_demo: isPlatformDemoEmail(input.email),
+    // Demo lab: subset fijo. Resto: solo módulos del tipo elegido.
+    modules_enabled: demo
+      ? [...PLATFORM_DEMO_MODULES]
+      : [...defaultModulesForTipo(tipo)],
+    is_platform_demo: demo,
   };
 }
 

@@ -206,18 +206,100 @@ export default async function DashboardPage() {
 
   const { data: estab } = await supabase
     .from("establecimientos")
-    .select("id, nombre")
+    .select(
+      "id, nombre, nombre_display, tipo, modules_enabled, rubros, is_platform_demo"
+    )
+    .eq("user_id", user.id)
     .limit(1)
-    .single();
-  if (!estab) redirect("/setup");
+    .maybeSingle();
 
-  const estabId = estab.id as string;
+  // Schema viejo sin cols platform
+  let estabRow = estab as {
+    id: string;
+    nombre: string;
+    nombre_display?: string | null;
+    tipo?: string | null;
+    modules_enabled?: string[] | null;
+    rubros?: string[] | null;
+  } | null;
 
-  // Potrero locations for mini-map (separate query, not limited)
-  const { data: potrerosMapRaw } = await supabase
-    .from("potreros")
-    .select("id, nombre, hectareas, cabezas, estado, latitud, longitud")
-    .eq("establecimiento_id", estabId);
+  if (!estabRow) {
+    const min = await supabase
+      .from("establecimientos")
+      .select("id, nombre, tipo")
+      .eq("user_id", user.id)
+      .limit(1)
+      .maybeSingle();
+    if (!min.data) redirect("/setup");
+    estabRow = min.data as {
+      id: string;
+      nombre: string;
+      tipo?: string | null;
+    };
+  }
+
+  const estabId = estabRow.id;
+  const displayName = (
+    estabRow.nombre_display?.trim() ||
+    estabRow.nombre
+  ).trim();
+  const tipo =
+    estabRow.tipo === "agricola" || estabRow.tipo === "mixto"
+      ? estabRow.tipo
+      : "ganadero";
+
+  const modules: string[] =
+    estabRow.modules_enabled && estabRow.modules_enabled.length > 0
+      ? estabRow.modules_enabled
+      : tipo === "agricola"
+        ? [
+            "inicio",
+            "agricola",
+            "insumos",
+            "finanzas",
+            "reportes",
+            "tareas",
+          ]
+        : tipo === "mixto"
+          ? [
+              "inicio",
+              "manga",
+              "hacienda",
+              "potreros",
+              "senasa",
+              "agricola",
+              "insumos",
+              "finanzas",
+              "reportes",
+              "tareas",
+            ]
+          : [
+              "inicio",
+              "manga",
+              "hacienda",
+              "potreros",
+              "senasa",
+              "insumos",
+              "finanzas",
+              "reportes",
+              "tareas",
+            ];
+
+  const has = (id: string) => modules.includes(id);
+  const showHacienda = has("hacienda") || has("manga");
+  const showPotreros = has("potreros");
+  const showInsumos = has("insumos");
+  const showTareas = has("tareas");
+  const showFinanzas = has("finanzas");
+  const showAgricola = has("agricola");
+
+  // Potrero locations for mini-map (solo si el módulo está on)
+  const { data: potrerosMapRaw } = showPotreros
+    ? await supabase
+        .from("potreros")
+        .select("id, nombre, hectareas, cabezas, estado, latitud, longitud")
+        .eq("establecimiento_id", estabId)
+    : { data: [] as unknown[] };
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const potrerosForMap = (potrerosMapRaw ?? []).map((p: any) => ({
@@ -234,7 +316,9 @@ export default async function DashboardPage() {
   todayStart.setUTCHours(0, 0, 0, 0);
   const todayISO = todayStart.toISOString();
 
-  // Parallel queries
+  const emptyList = Promise.resolve({ data: [] as unknown[], count: 0 });
+
+  // Parallel queries — solo módulos enabled (genérico no pega hacienda si es agrícola)
   const [
     { data: animalesData },
     { data: insumosAll },
@@ -247,72 +331,119 @@ export default async function DashboardPage() {
     { data: recentInsumos },
     { data: recentTareas },
     { data: recentGastos },
+    { data: lotesData },
   ] = await Promise.all([
-    supabase.from("animales").select("cantidad").eq("establecimiento_id", estabId),
-    supabase.from("insumos").select("inventario, minimo").eq("establecimiento_id", estabId),
-    supabase
-      .from("tareas")
-      .select("id", { count: "exact", head: true })
-      .eq("establecimiento_id", estabId)
-      .eq("completada", false),
-    supabase
-      .from("animales")
-      .select("id", { count: "exact", head: true })
-      .eq("establecimiento_id", estabId)
-      .gte("created_at", todayISO),
-    supabase
-      .from("tareas")
-      .select("id", { count: "exact", head: true })
-      .eq("establecimiento_id", estabId)
-      .gte("created_at", todayISO),
-    supabase
-      .from("gastos")
-      .select("id", { count: "exact", head: true })
-      .eq("establecimiento_id", estabId)
-      .gte("created_at", todayISO),
-    supabase
-      .from("animales")
-      .select("id, categoria, cantidad, potrero, responsable, created_at")
-      .eq("establecimiento_id", estabId)
-      .order("created_at", { ascending: false })
-      .limit(3),
-    supabase
-      .from("potreros")
-      .select("id, nombre, hectareas, estado, created_at")
-      .eq("establecimiento_id", estabId)
-      .order("created_at", { ascending: false })
-      .limit(2),
-    supabase
-      .from("insumos")
-      .select("id, nombre, inventario, minimo, categoria, created_at")
-      .eq("establecimiento_id", estabId)
-      .order("created_at", { ascending: false })
-      .limit(2),
-    supabase
-      .from("tareas")
-      .select("id, titulo, prioridad, completada, responsable, created_at")
-      .eq("establecimiento_id", estabId)
-      .order("created_at", { ascending: false })
-      .limit(3),
-    supabase
-      .from("gastos")
-      .select("id, concepto, monto, tipo, categoria, created_at")
-      .eq("establecimiento_id", estabId)
-      .order("created_at", { ascending: false })
-      .limit(2),
+    showHacienda
+      ? supabase.from("animales").select("cantidad").eq("establecimiento_id", estabId)
+      : emptyList,
+    showInsumos
+      ? supabase
+          .from("insumos")
+          .select("inventario, minimo")
+          .eq("establecimiento_id", estabId)
+      : emptyList,
+    showTareas
+      ? supabase
+          .from("tareas")
+          .select("id", { count: "exact", head: true })
+          .eq("establecimiento_id", estabId)
+          .eq("completada", false)
+      : emptyList,
+    showHacienda
+      ? supabase
+          .from("animales")
+          .select("id", { count: "exact", head: true })
+          .eq("establecimiento_id", estabId)
+          .gte("created_at", todayISO)
+      : emptyList,
+    showTareas
+      ? supabase
+          .from("tareas")
+          .select("id", { count: "exact", head: true })
+          .eq("establecimiento_id", estabId)
+          .gte("created_at", todayISO)
+      : emptyList,
+    showFinanzas
+      ? supabase
+          .from("gastos")
+          .select("id", { count: "exact", head: true })
+          .eq("establecimiento_id", estabId)
+          .gte("created_at", todayISO)
+      : emptyList,
+    showHacienda
+      ? supabase
+          .from("animales")
+          .select("id, categoria, cantidad, potrero, responsable, created_at")
+          .eq("establecimiento_id", estabId)
+          .order("created_at", { ascending: false })
+          .limit(3)
+      : emptyList,
+    showPotreros
+      ? supabase
+          .from("potreros")
+          .select("id, nombre, hectareas, estado, created_at")
+          .eq("establecimiento_id", estabId)
+          .order("created_at", { ascending: false })
+          .limit(2)
+      : emptyList,
+    showInsumos
+      ? supabase
+          .from("insumos")
+          .select("id, nombre, inventario, minimo, categoria, created_at")
+          .eq("establecimiento_id", estabId)
+          .order("created_at", { ascending: false })
+          .limit(2)
+      : emptyList,
+    showTareas
+      ? supabase
+          .from("tareas")
+          .select("id, titulo, prioridad, completada, responsable, created_at")
+          .eq("establecimiento_id", estabId)
+          .order("created_at", { ascending: false })
+          .limit(3)
+      : emptyList,
+    showFinanzas
+      ? supabase
+          .from("gastos")
+          .select("id, concepto, monto, tipo, categoria, created_at")
+          .eq("establecimiento_id", estabId)
+          .order("created_at", { ascending: false })
+          .limit(2)
+      : emptyList,
+    showAgricola
+      ? supabase
+          .from("lotes_agricolas")
+          .select("id, nombre, cultivo, hectareas, estado, created_at")
+          .eq("establecimiento_id", estabId)
+          .order("created_at", { ascending: false })
+          .limit(5)
+      : emptyList,
   ]);
 
-  // Compute metrics
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const totalCabezas = (animalesData ?? []).reduce((sum: number, a: any) => sum + (a.cantidad ?? 0), 0);
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const stockCritico = (insumosAll ?? []).filter((i: any) => i.inventario < i.minimo).length;
+  // Compute metrics (PostgREST sin Database types → unknown + narrow)
+  type QtyRow = { cantidad?: number | null };
+  type StockRow = { inventario?: number | null; minimo?: number | null };
+  type HaRow = { hectareas?: number | null };
+
+  const totalCabezas = ((animalesData ?? []) as QtyRow[]).reduce(
+    (sum, a) => sum + (a.cantidad ?? 0),
+    0
+  );
+  const stockCritico = ((insumosAll ?? []) as StockRow[]).filter(
+    (i) => Number(i.inventario) < Number(i.minimo)
+  ).length;
   const tareasPendientes = tareasPendientesCount ?? 0;
   const movimientosHoy =
     (animalesHoyCount ?? 0) + (tareasHoyCount ?? 0) + (gastosHoyCount ?? 0);
+  const lotesCount = (lotesData ?? []).length;
+  const haLotes = ((lotesData ?? []) as HaRow[]).reduce(
+    (s, l) => s + (Number(l.hectareas) || 0),
+    0
+  );
 
-  const metrics: MetricCard[] = [
-    {
+  const metrics: MetricCard[] = [];
+  if (showHacienda) {
+    metrics.push({
       label: "Total Cabezas",
       value: fmtNum(totalCabezas),
       delta: "actual",
@@ -321,18 +452,32 @@ export default async function DashboardPage() {
       icon: Beef,
       iconBg: "rgba(58,74,50,0.10)",
       iconColor: "var(--color-campo)",
-    },
-    {
-      label: "Movimientos del día",
-      value: fmtNum(movimientosHoy),
-      delta: "hoy",
+    });
+  }
+  if (showAgricola) {
+    metrics.push({
+      label: "Lotes agrícolas",
+      value: fmtNum(lotesCount),
+      delta: haLotes > 0 ? `${fmtNum(haLotes)} ha` : "mvp",
       deltaType: "neutral",
-      sub: "registros en el día",
-      icon: ArrowLeftRight,
-      iconBg: "rgba(139,78,42,0.10)",
-      iconColor: "var(--color-cuero)",
-    },
-    {
+      sub: "cultivos / lotes",
+      icon: Package,
+      iconBg: "rgba(22,163,74,0.09)",
+      iconColor: "#16a34a",
+    });
+  }
+  metrics.push({
+    label: "Movimientos del día",
+    value: fmtNum(movimientosHoy),
+    delta: "hoy",
+    deltaType: "neutral",
+    sub: "registros en el día",
+    icon: ArrowLeftRight,
+    iconBg: "rgba(139,78,42,0.10)",
+    iconColor: "var(--color-cuero)",
+  });
+  if (showInsumos) {
+    metrics.push({
       label: "Stock crítico",
       value: fmtNum(stockCritico),
       delta: stockCritico > 0 ? "alerta" : "ok",
@@ -341,8 +486,10 @@ export default async function DashboardPage() {
       icon: AlertTriangle,
       iconBg: stockCritico > 0 ? "rgba(217,119,6,0.10)" : "rgba(22,163,74,0.09)",
       iconColor: stockCritico > 0 ? "#d97706" : "#16a34a",
-    },
-    {
+    });
+  }
+  if (showTareas) {
+    metrics.push({
       label: "Tareas pendientes",
       value: fmtNum(tareasPendientes),
       delta: tareasPendientes > 0 ? "pendiente" : "al día",
@@ -351,8 +498,8 @@ export default async function DashboardPage() {
       icon: ClipboardCheck,
       iconBg: "rgba(37,99,235,0.08)",
       iconColor: "#2563eb",
-    },
-  ];
+    });
+  }
 
   // Build activity items, preserving created_at for sorting
   type RawItem = { ts: number; item: ActivityItem };
@@ -457,6 +604,25 @@ export default async function DashboardPage() {
     });
   }
 
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  for (const l of (lotesData ?? []) as any[]) {
+    rawItems.push({
+      ts: new Date(l.created_at).getTime(),
+      item: {
+        id: l.id,
+        icon: Package,
+        iconBg: "rgba(22,163,74,0.09)",
+        iconColor: "#16a34a",
+        title: `Lote "${l.nombre}"`,
+        description: `${l.cultivo || "sin cultivo"} · ${l.hectareas ?? "—"} ha · ${l.estado}`,
+        time: relTime(l.created_at),
+        category: "Agrícola",
+        categoryBg: "rgba(22,163,74,0.09)",
+        categoryColor: "#16a34a",
+      },
+    });
+  }
+
   rawItems.sort((a, b) => b.ts - a.ts);
   const activities = rawItems.slice(0, 6).map((r) => r.item);
 
@@ -490,7 +656,7 @@ export default async function DashboardPage() {
                 fontFamily: "var(--font-playfair), Georgia, serif",
               }}
             >
-              {estab.nombre}
+              {displayName}
             </h1>
           </div>
           <p className="text-xs capitalize" style={{ color: "rgba(26,26,24,0.45)" }}>
@@ -502,7 +668,7 @@ export default async function DashboardPage() {
       {/* Mobile: nombre del campo compacto */}
       <div className="md:hidden px-3 pt-3 pb-1">
         <p className="text-xs font-medium truncate" style={{ color: "rgba(26,26,24,0.5)" }}>
-          {estab.nombre} · {dateFormatted}
+          {displayName} · {dateFormatted}
         </p>
       </div>
 
@@ -514,9 +680,10 @@ export default async function DashboardPage() {
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-5 gap-3 flex-1">
-          <div className="lg:col-span-3">
+          <div className={showPotreros ? "lg:col-span-3" : "lg:col-span-5"}>
             <ActivityFeed activities={activities} />
           </div>
+          {showPotreros && (
           <div className="lg:col-span-2 flex flex-col min-h-[200px] md:min-h-[280px]">
             <div
               className="rounded-xl flex flex-col h-full overflow-hidden"
@@ -545,6 +712,7 @@ export default async function DashboardPage() {
               </div>
             </div>
           </div>
+          )}
         </div>
       </div>
     </div>
