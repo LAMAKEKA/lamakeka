@@ -553,15 +553,13 @@ export default function RegisterPage() {
             </button>
           </form>
 
-          <p
-            className="text-center text-xs mt-4"
-            style={{ color: "rgba(26,26,24,0.4)" }}
-          >
-            Después del alta (y confirmar email si hace falta) vas a{" "}
+          <p className="text-center text-xs mt-4" style={{ color: "rgba(26,26,24,0.4)" }}>
+            Después del alta vas a{" "}
             <strong style={{ color: "var(--color-tierra)" }}>
               Configurá tu establecimiento
             </strong>
-            .
+            {" "}
+            (nombre del campo y si es ganadero, agrícola o mixto).
           </p>
 
           <p
